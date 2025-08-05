@@ -1,5 +1,4 @@
-#ifndef DOCREADER_HPP
-#define DOCREADER_HPP
+#pragma once
 
 #include <QString>
 #include <QStringList>
@@ -13,9 +12,7 @@ class DocReader {
 public:
     DocReader() = default;
 
-    std::optional<QString> readFile(const QString &document);
+    static std::optional<QString> readFile(const QString &document);
 
     ~DocReader() = default;
 };
-
-#endif //DOCREADER_HPP

@@ -9,6 +9,7 @@ target_compile_definitions(antyCopy_lib PRIVATE
 target_link_libraries(antyCopy_lib PUBLIC
         QuaZip::QuaZip
         Qt6::Core
+        "${TORCH_LIBRARIES}"
 )
 
 file(GLOB_RECURSE TEST_SRCS test/*.cpp)

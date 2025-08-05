@@ -5,7 +5,6 @@
 #include <quazip/quazip.h>
 #include <QXmlStreamReader>
 
-
 std::optional<QString> DocReader::readFile(const QString &document) {
     QString result;
 

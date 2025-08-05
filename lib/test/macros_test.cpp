@@ -1,7 +1,6 @@
 #include  <gtest/gtest.h>
 #include <filesystem>
 #include <string>
-#include <iostream>
 
 TEST(MystemMacro, IsDefinedAndNonEmpty) {
     const std::string path = MYSTEM_EXECUTABLE;

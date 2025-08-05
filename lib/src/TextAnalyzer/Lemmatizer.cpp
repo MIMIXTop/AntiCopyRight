@@ -1,0 +1,69 @@
+#include "Lemmatizer.hpp"
+
+#include <fstream>
+#include <algorithm>
+#include <QDebug>
+
+#ifndef MYSTEM_EXECUTABLE
+    # error "MYSTEM_EXECUTABLE не задан!"
+#endif
+
+namespace {
+#ifdef WIN32
+    #define PATH_STOP_WORDS "Utils\\StopWords\\russianStopWords.txt"
+#else
+    #define PATH_STOP_WORDS "Utils/StopWords/stopWords.txt"
+#endif
+
+
+    std::unordered_set<std::string> getStopWords(const std::string &path = PATH_STOP_WORDS) {
+        std::unordered_set<std::string> stopWords = {};
+
+        if (std::ifstream file(path); file.is_open()) {
+            std::string line;
+            while (file >> line) {
+                stopWords.insert(line);
+            }
+            file.close();
+        } else {
+            qInfo() << "Could not open file";
+        }
+
+        return stopWords;
+    }
+
+}
+
+Lemmatizer::Lemmatizer() : stopWords(getStopWords()) {}
+
+std::vector<std::string> Lemmatizer::getLemmas(const std::string &text) const {
+    std::vector<std::string> lemmas;
+    std::string command = "echo \"" + text + "\" | " + MYSTEM_EXECUTABLE + " -l -n" ;
+    FILE *pipe = popen(command.c_str(), "r");
+    if (pipe == nullptr) {
+        qInfo() << "Could not open pipe";
+    }
+
+    char buffer[128];
+    while (fgets(buffer, sizeof(buffer), pipe) != nullptr) {
+        std::string line(buffer);
+        const std::size_t brace_pos = line.find('{');
+        if (brace_pos != std::string::npos) {
+            std::string lemma = line.substr(brace_pos + 1);
+            std::erase(lemmas,'\n');
+            std::erase(lemmas,'}');
+            if (!stopWords.contains(lemma)) {
+                lemmas.push_back(lemma);
+            }
+        } else {
+            std::string word = line;
+            std::erase(word,'\n');
+            if (!word.empty() && !stopWords.contains(word)) {
+                lemmas.push_back(word);
+            }
+        }
+    }
+
+    pclose(pipe);
+    return lemmas;
+}
