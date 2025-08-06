@@ -1,8 +1,8 @@
 #include <iostream>
-#include <string>
 
 int main() {
-    std::string str = "Hello, World";
-    std::cout << str << std::endl;
+
+    std::cout << "https://youtu.be/xvFZjo5PgG0?si=AkVUMST4gQ_NMMu4"<< std::endl;
+
     return 0;
 }

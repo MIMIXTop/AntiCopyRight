@@ -7,7 +7,7 @@
 class Lemmatizer {
 public:
     Lemmatizer();
-    std::vector<std::string> getLemmas(const std::string &text) const;
+    static std::vector<std::string> getLemmas(const std::string &text) ;
     ~Lemmatizer() = default;
 
 private:

@@ -1,4 +1,5 @@
 #include "Lemmatizer.hpp"
+#include <Util/util.hpp>
 
 #include <fstream>
 #include <algorithm>
@@ -9,12 +10,11 @@
 #endif
 
 namespace {
-#ifdef WIN32
-    #define PATH_STOP_WORDS "Utils\\StopWords\\russianStopWords.txt"
-#else
-    #define PATH_STOP_WORDS "Utils/StopWords/stopWords.txt"
-#endif
-
+    #ifdef WIN32
+        #define PATH_STOP_WORDS "Utils\\StopWords\\russianStopWords.txt"
+    #else
+        #define PATH_STOP_WORDS "Utils/StopWords/stopWords.txt"
+    #endif
 
     std::unordered_set<std::string> getStopWords(const std::string &path = PATH_STOP_WORDS) {
         std::unordered_set<std::string> stopWords = {};
@@ -36,7 +36,7 @@ namespace {
 
 Lemmatizer::Lemmatizer() : stopWords(getStopWords()) {}
 
-std::vector<std::string> Lemmatizer::getLemmas(const std::string &text) const {
+std::vector<std::string> Lemmatizer::getLemmas(const std::string &text) {
     std::vector<std::string> lemmas;
     std::string command = "echo \"" + text + "\" | " + MYSTEM_EXECUTABLE + " -l -n" ;
     FILE *pipe = popen(command.c_str(), "r");
@@ -47,20 +47,9 @@ std::vector<std::string> Lemmatizer::getLemmas(const std::string &text) const {
     char buffer[128];
     while (fgets(buffer, sizeof(buffer), pipe) != nullptr) {
         std::string line(buffer);
-        const std::size_t brace_pos = line.find('{');
-        if (brace_pos != std::string::npos) {
-            std::string lemma = line.substr(brace_pos + 1);
-            std::erase(lemmas,'\n');
-            std::erase(lemmas,'}');
-            if (!stopWords.contains(lemma)) {
-                lemmas.push_back(lemma);
-            }
-        } else {
-            std::string word = line;
-            std::erase(word,'\n');
-            if (!word.empty() && !stopWords.contains(word)) {
-                lemmas.push_back(word);
-            }
+
+        if (!line.empty()) {
+            lemmas.push_back(util::StringWorker::getFirstLemma(line));
         }
     }
 

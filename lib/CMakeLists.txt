@@ -1,6 +1,7 @@
 project(antyCopy_lib)
 
 file(GLOB_RECURSE SRCS src/*.cpp)
+
 add_library(antyCopy_lib STATIC ${SRCS})
 target_include_directories(antyCopy_lib PUBLIC src)
 target_compile_definitions(antyCopy_lib PRIVATE

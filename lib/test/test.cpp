@@ -60,3 +60,4 @@ TEST(DocReaderErrorTest, InvalidFile) {
     EXPECT_FALSE(result.has_value());
 
 }
+
