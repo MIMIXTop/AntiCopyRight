@@ -2,7 +2,9 @@ project(antyCopy_lib)
 
 file(GLOB_RECURSE SRCS src/*.cpp)
 
-add_library(antyCopy_lib STATIC ${SRCS})
+add_library(antyCopy_lib STATIC ${SRCS}
+        src/Network/NetworkManager.cpp
+        src/Network/NetworkManager.hpp)
 target_include_directories(antyCopy_lib PUBLIC src)
 target_compile_definitions(antyCopy_lib PRIVATE
         MYSTEM_EXECUTABLE="${MYSTEM_EXE}"
@@ -10,6 +12,9 @@ target_compile_definitions(antyCopy_lib PRIVATE
 target_link_libraries(antyCopy_lib PUBLIC
         QuaZip::QuaZip
         Qt6::Core
+        Qt6::Network
+        Qt6::NetworkAuth
+        Qt6::Gui
         "${TORCH_LIBRARIES}"
 )
 

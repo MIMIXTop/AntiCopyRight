@@ -16,7 +16,7 @@ namespace {
 #endif
 }
 
-torch::Tensor Doc2VecModel::getDocVector(const std::string &document) const {
+torch::Tensor Model::Doc2VecModel::getDocVector(const std::string &document) const {
     if (model == nullptr) {
         throw std::runtime_error("To use this you must first load the model");
     }
@@ -26,7 +26,7 @@ torch::Tensor Doc2VecModel::getDocVector(const std::string &document) const {
 
     for (auto&& token : tokens) {
         if (word2idx.contains(token)) {
-            indices.emplace_back(word2idx[token]);
+            indices.emplace_back(word2idx.at(token));
         }
     }
 
@@ -34,7 +34,7 @@ torch::Tensor Doc2VecModel::getDocVector(const std::string &document) const {
         return torch::zeros({embedding_dim}).to(device);
     }
 
-    auto input = torch::from_blob(indices.data(), indices.size(), torch::TensorOptions()).to(device);
+    at::Tensor input = torch::from_blob(indices.data(), indices.size(), torch::TensorOptions()).to(device);
     auto embeddings = word_embeddings->forward({input}).toTensor();
 
     if (embeddings.size(0) == 0) {
@@ -44,7 +44,7 @@ torch::Tensor Doc2VecModel::getDocVector(const std::string &document) const {
     return embeddings.mean(0);
 }
 
-void Doc2VecModel::loadModel() {
+void Model::Doc2VecModel::loadModel() {
     try {
         model = std::make_unique<torch::jit::Module>( torch::jit::load(PATH_MODEL));
         model->to(device);
@@ -59,11 +59,7 @@ void Doc2VecModel::loadModel() {
     embedding_dim = weights.size(1);
 }
 
-double Doc2VecModel::Similarity(const torch::Tensor &doc1, const torch::Tensor &doc2) const {
-    if (model == nullptr) {
-        throw std::runtime_error("To use this you must first load the model");
-    }
-
+double Model::Doc2VecModel::Similarity(const torch::Tensor &doc1, const torch::Tensor &doc2) {
     if (doc1.size(0) == 0 || doc2.size(0) == 0) {
         throw std::runtime_error("one of the vectors is empty");
     }
@@ -74,23 +70,22 @@ double Doc2VecModel::Similarity(const torch::Tensor &doc1, const torch::Tensor &
                ).item<double>();
 }
 
-void Doc2VecModel::setDevice() {
-    if (torch::cuda::is_available()) {
-        device = torch::Device(torch::kCUDA);
-    } else {
-        device = torch::Device(torch::kCPU);
-    }
+torch::Device Model::Doc2VecModel::setDevice() {
+    return  torch::Device(torch::cuda::is_available() ? torch::kCUDA : torch::kCPU);
 }
 
-void Doc2VecModel::setWord2Idx() {
+std::unordered_map<std::string, int32_t> Model::Doc2VecModel::setWord2Idx() {
+    std::unordered_map<std::string, int32_t> word2idx_copy;
     if (std::ifstream file(PATH_WORD2IDX); file.is_open()) {
         std::string word;
         int32_t index;
         while (file >> word >> index) {
-            word2idx[word] = index;
+            word2idx_copy[word] = index;
         }
         file.close();
     } else {
-        qInfo() << "Could not open file to path: " << PATH_WORD2IDX;
+        throw std::runtime_error("Could not open file to path: " + std::string(PATH_WORD2IDX));
     }
+
+    return word2idx_copy;
 }

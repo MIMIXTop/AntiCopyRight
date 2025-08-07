@@ -71,7 +71,12 @@ FetchContent_MakeAvailable(googletest quazip libtorch)
 list(APPEND CMAKE_PREFIX_PATH ${libtorch_SOURCE_DIR})
 find_package(Torch REQUIRED)
 
-find_package(Qt6 COMPONENTS Core)
+find_package(Qt6 COMPONENTS
+        Core
+        Network
+        NetworkAuth
+        Gui
+)
 
 add_subdirectory(lib)
 
