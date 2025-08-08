@@ -1,6 +1,6 @@
 #pragma once
 
-#include <TextAnalyzer/Lemmatizer.hpp>
+#include <TextAnalyzer/Lemmantizer/Lemmatizer.hpp>
 
 #include <torch/script.h>
 #include <unordered_map>

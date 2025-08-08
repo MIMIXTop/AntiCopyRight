@@ -1,46 +1,62 @@
 #include "NetworkManager.hpp"
-#include "NetworkManager.hpp"
-#include "NetworkManager.hpp"
+#include "RequestTypes.hpp"
 
 #include <QFile>
+#include <QDir>
+#include <QBuffer>
+#include <quazip/quazip.h>
+#include <quazip/quazipfile.h>
+#include <quazip/quazipnewinfo.h>
 #include <QJsonObject>
 #include <QJsonArray>
 #include <QUrl>
 #include <QDesktopServices>
 #include <QNetworkReply>
 #include <QOAuthHttpServerReplyHandler>
+#include <QTimer>
+
+#include "torch/csrc/jit/ir/attributes.h"
 
 namespace {
 #ifdef WIN32
-    #define CREDENTIALS_PATH "Util\\Network\\credentials.json"
+    #define CREDENTIALS_PATH "Util\\Network\\init.json"
 #else
-    #define CREDENTIALS_PATH "Util/Network/credentials.json"
+    #define CREDENTIALS_PATH "../Utils/Network/init.json"
 #endif
 }
 
 namespace Network {
-    NetworkManager::NetworkManager() : google(new QOAuth2AuthorizationCodeFlow()),
-                                       manager(new QNetworkAccessManager),
-                                       replyHandler(new QOAuthHttpServerReplyHandler) {
+    NetworkManager::NetworkManager(QObject *parent) : QObject(parent) {
+        google = new QOAuth2AuthorizationCodeFlow(this);
+        manager = new QNetworkAccessManager(this);
+        replyHandler = new QOAuthHttpServerReplyHandler(this);
+
         google->setReplyHandler(replyHandler);
         connect(google, &QOAuth2AuthorizationCodeFlow::authorizeWithBrowser, &QDesktopServices::openUrl);
         connect(google, &QOAuth2AuthorizationCodeFlow::granted, [this]() {
-            this->connectedStatus = true;
+            this->connectedStatus = ConnectionState::Connected;
         });
 
-        QFile file(CREDENTIALS_PATH);
-        if (!file.open(QIODevice::ReadOnly)) {
-            throw std::runtime_error("You need add credentials.json 'Google Cloud API'");
+        if (std::filesystem::exists(CREDENTIALS_PATH)) {
+            qInfo() << "Credentials";
+        } else {
+            qInfo() << "No CREDENTIALS";
         }
+
+        QFile file(CREDENTIALS_PATH);
+        file.open(QIODevice::ReadOnly);
+        // if (!) {
+        //     throw std::runtime_error("You need add init.json 'Google Cloud API'");
+        // }
 
         QJsonDocument document = QJsonDocument::fromJson(file.readAll());
         QJsonObject json = document.object()["installed"].toObject();
 
         google->setRequestedScopeTokens({
             "https://www.googleapis.com/auth/classroom.coursework.students",
-            "https://www.googleapis.com/auth/classroom.coursework.students.readonly ",
+            "https://www.googleapis.com/auth/classroom.coursework.students.readonly",
             "https://www.googleapis.com/auth/drive.readonly",
-            "https://www.googleapis.com/auth/classroom.courses",
+            "https://www.googleapis.com/auth/classroom.courses"
         });
 
         google->setClientIdentifier(json["client_id"].toString());
@@ -49,23 +65,108 @@ namespace Network {
         google->setTokenUrl(QUrl(json["token_uri"].toString()));
     }
 
-    bool NetworkManager::isConnected() const {
-        return connectedStatus;
-    }
 
-    void NetworkManager::Authenticate() const {
+    void NetworkManager::authenticate() const {
         google->grant();
     }
 
     void NetworkManager::getListCourses() {
-        if (!isConnected()) { emit requestFailed("Not authenticated"); }
+        enqueueWhenConnecting("getListCourses", 10000, [this]() {
+           startCoursesRequest();
+        });
+    }
 
+    void NetworkManager::getStudentsWorks(const QString& coursId, const QString& coursWorkId) {
+        enqueueWhenConnecting("getStudentsWorks", 10000, [this, coursId, coursWorkId]() {
+            startStudentsWorksRequest(coursId, coursWorkId);
+        });
+    }
+
+    void NetworkManager::downloadStudentWork(const QString &fileName, const QString &fileUrl) {
+        enqueueWhenConnecting("downloadStudentWork", 10000, [this, fileName, fileUrl]() {
+           startDownloadStudentWorksRequest(fileName, fileUrl);
+        });
+    }
+
+    void NetworkManager::getListCoursesWorks(const QJsonArray &courses) {
+        enqueueWhenConnecting("getListCoursesWorks", 10000, [this, courses]() {
+            startCourseWorksRequest(courses);
+        });
+    }
+
+    void NetworkManager::setConnectionState(ConnectionState state) {
+        if (state == connectedStatus) return;
+        connectedStatus = state;
+        emit statusChanged(state);
+
+        if (state == ConnectionState::Connecting) {
+            drainPendingConnecting();
+        } else if (state == ConnectionState::Disconnecting) {
+            failAllPending("Not authenticated");
+        }
+    }
+
+    void NetworkManager::enqueueWhenConnecting(const QString &name, quint64 timoutMs, std::function<void()> action) {
+        if (connectedStatus == ConnectionState::Disconnecting) {
+            emit requestFailed(name + ": Not authenticated");
+            return;
+        }
+        if (connectedStatus == ConnectionState::Connecting) {
+            action();
+            return;
+        }
+
+        const quint64 id = NextId++;
+        PendingAction pendingAction{ id, name, std::move(action), new QTimer(this) };
+        pendingAction.timer->setSingleShot(true);
+        pendingAction.timer->setInterval(timoutMs);
+
+        connect(pendingAction.timer, &QTimer::timeout,this , [this, id]() {
+            if (!queueActions.contains(id)) return;
+            const QString nm = queueActions[id].name;
+            queueActions.remove(id);
+            emit requestFailed(nm + ": Timeout waiting for Connecting");
+        });
+
+        pendingAction.timer->start();
+        queueActions.insert(id, pendingAction);
+    }
+
+    void NetworkManager::drainPendingConnecting() {
+        if (connectedStatus == ConnectionState::Connecting) return;
+
+        const auto ids = queueActions.keys();
+        for (auto&& id : ids) {
+            auto it = queueActions.find(id);
+            if (it == queueActions.end()) continue;
+            if (it->timer) it->timer->stop();
+            auto action = it->action;
+            queueActions.erase(it);
+            if (action) action();
+        }
+    }
+
+    void NetworkManager::failAllPending(const QString &reason) {
+        const auto ids = queueActions.keys();
+        for (auto&& id : ids) {
+            auto it = queueActions.find(id);
+            if (it == queueActions.end()) continue;
+            if (it->timer) it->timer->stop();
+            const QString nm = queueActions[id].name;
+            queueActions.erase(it);
+            emit requestFailed(nm + ": " + reason);
+        }
+    }
+
+    void NetworkManager::startCoursesRequest() {
         QNetworkRequest request(QUrl("https://classroom.googleapis.com/v1/courses"));
         request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
         request.setRawHeader("Authorization", "Bearer " + google->token().toLatin1());
-        QNetworkReply *reply = manager->get(request) ;
-        connect(reply, &QNetworkReply::finished, [=]() {
-            if (reply->error() == QNetworkReply::NoError) {
+
+        QNetworkReply *reply = manager->get(request);
+
+        connect(reply, &QNetworkReply::finished, [this, reply]() {
+            if (reply->error() != QNetworkReply::NoError) {
                 emit requestFailed("Network error: " + reply->errorString());
                 reply->deleteLater();
                 return;
@@ -78,8 +179,89 @@ namespace Network {
                 return;
             }
 
-            emit coursesReceived(document.object()["courses"].toArray());
+            emit responseToRequest(RequestTypes::Course(document.object()["courses"].toArray()));
+            reply->deleteLater();
         });
+    }
 
+    void NetworkManager::startStudentsWorksRequest(const QString &courseId, const QString &courseWorkId) {
+        QNetworkRequest request(QUrl("https://classroom.googleapis.com/v1/courses/" + courseId + "/courseWork/" + courseWorkId + "/studentSubmissions"));
+        request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+        request.setRawHeader("Authorization", "Bearer " + google->token().toLatin1());
+        QNetworkReply *reply = manager->get(request);
+
+        connect(reply, &QNetworkReply::finished, [this, reply]() {
+            if (reply->error() != QNetworkReply::NoError) {
+                emit requestFailed("Network error: " + reply->errorString());
+                reply->deleteLater();
+                return;
+            }
+
+            QJsonDocument document = QJsonDocument::fromJson(reply->readAll());
+            if (!document.isObject() || !document.object().contains("studentSubmissions")) {
+                emit requestFailed("Invalid JSON response!");
+                reply->deleteLater();
+                return;
+            }
+
+            emit responseToRequest(RequestTypes::StudentWorks(document.object()["studentSubmissions"].toArray()));
+        });
+    }
+
+    void NetworkManager::startCourseWorksRequest(const QJsonArray &courses) {
+        QNetworkRequest request(QUrl("https://classroom.googleapis.com/v1/courses/" + courses.at(1)["id"].toString() + "/courseWork"));
+        request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+
+        request.setRawHeader("Authorization", "Bearer " + google->token().toLatin1());
+
+        QNetworkReply* reply = manager->get(request);
+
+        connect(reply, &QNetworkReply::finished, [this, reply]() {
+            if (reply->error() != QNetworkReply::NoError) {
+                emit requestFailed("Network error: " + reply->errorString());
+                reply->deleteLater();
+                return;
+            }
+
+            QJsonDocument document = QJsonDocument::fromJson(reply->readAll());
+            if (!document.isObject() || !document.object().contains("courseWork")) {
+                emit requestFailed("Invalid JSON response!");
+                reply->deleteLater();
+                return;
+            }
+
+            emit responseToRequest(RequestTypes::CourseWorks(document.object()["courseWork"].toArray()));
+            reply->deleteLater();
+        });
+    }
+
+    void NetworkManager::startDownloadStudentWorksRequest(const QString &fileName, const QString &fileId) {
+        QNetworkRequest request(QUrl(QString("https://www.googleapis.com/drive/v3/files/%1?alt=media").arg(fileId)));
+
+        request.setRawHeader("Authorization", "Bearer " + google->token().toLatin1());
+        QNetworkReply *reply = manager->get(request);
+
+        QuaZipFileInfo fileInfo(fileName);
+        QBuffer *buffer = new QBuffer();
+        buffer->open(QIODevice::WriteOnly);
+
+        QuaZip zip(buffer);
+        zip.open(QuaZip::mdCreate);
+
+        QuaZipFile file(&zip);
+        file.open(QIODevice::WriteOnly);
+
+        connect(reply, &QNetworkReply::finished, [this, reply, &file]() {
+            if (reply->error() != QNetworkReply::NoError) {
+                emit requestFailed("Network error: " + reply->errorString());
+                reply->deleteLater();
+                return;
+            }
+
+            QByteArray data = reply->readAll();
+            file.write(data);
+
+            emit responseToRequest(RequestTypes::DownloadStudentWork());
+        });
     }
 } // Network

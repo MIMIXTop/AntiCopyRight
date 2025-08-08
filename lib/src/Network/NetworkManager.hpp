@@ -1,6 +1,6 @@
 #pragma once
 
-#include <Util/util.hpp>
+#include  "RequestTypes.hpp"
 
 #include <QObject>
 #include <QNetworkAccessManager>
@@ -8,50 +8,72 @@
 #include <QNetworkRequestFactory>
 #include <QOAuthHttpServerReplyHandler>
 #include <QString>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QHash>
 
-#include <expected>
+#include <functional>
 
 namespace Network {
-    class NetworkManager : public QObject {
+    class NetworkManager final : public QObject {
+        enum class ConnectionState {
+            Connected,
+            Connecting,
+            Disconnecting,
+            Disconnected
+        };
+
         Q_OBJECT
 
     public:
-        NetworkManager();
+        explicit NetworkManager(QObject *parent = nullptr);
 
-        ~NetworkManager() override {
-            delete google;
-            delete replyHandler;
-            delete manager;
-        }
+        ~NetworkManager() override = default;
 
-        [[nodiscard]] bool isConnected() const;
+        void authenticate() const;
 
-        void Authenticate() const;
+        /// Public API
+        void getListCourses();
+        void getStudentsWorks(const QString& coursId, const QString& coursWorkId);
+        void downloadStudentWork(const QString& fileName, const QString& fileUrl);
+        void getListCoursesWorks(const QJsonArray& courses);
 
+        void setConnectionState(ConnectionState state);
+        [[nodiscard]] ConnectionState getConnectionState() const {return connectedStatus;}
     signals:
-        void coursesReceived(QJsonArray courses);
-        void requestFailed(QString error);
+        void requestFailed(const QString& message);
+        void responseToRequest(Request request);
+
+        void statusChanged(ConnectionState state);
 
     private:
+        ///Methods for pending
+        void enqueueWhenConnecting(const QString& name, quint64 timoutMs, std::function<void()> action);
+        void drainPendingConnecting();
+        void failAllPending(const QString& reason);
+
+        ///Private API
+        void startCoursesRequest();
+        void startStudentsWorksRequest(const QString& courseId, const QString& courseWorkId);
+        void startCourseWorksRequest(const QJsonArray& courseWorks);
+        void startDownloadStudentWorksRequest(const QString& fileName,const QString& fileId);
+
+        struct PendingAction {
+            quint64 Id;
+            QString name;
+            std::function<void()> action;
+            QTimer* timer{nullptr};
+        };
+
         QOAuth2AuthorizationCodeFlow *google;
         QOAuthHttpServerReplyHandler *replyHandler;
         QNetworkRequestFactory apiClassroom{{"https://classroom.googleapis.com/v1"}};
         QNetworkRequestFactory apiDrive{{"https://www.googleapis.com/v1/drive/v2"}};
         QNetworkAccessManager *manager;
-        bool connectedStatus = false;
 
-        enum class REPLY_TYPE {
-            COURSES,
-            SOLUTIONS,
-            WORKS,
-        };
+        ConnectionState connectedStatus = ConnectionState::Connected;
+        QHash<quint64, PendingAction> queueActions;
+        quint64 NextId = 1;
 
-        void getListCourses();
-
-        void getListCoursesWorks(QJsonArray);
-
-        void getStudentsWorks(QString coursId, QString coursWorkId);
-
-        void downloadStudentWork(QString fileName, QString fileUrl);
     };
 } // Network

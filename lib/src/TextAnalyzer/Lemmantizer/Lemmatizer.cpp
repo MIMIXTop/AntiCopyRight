@@ -11,9 +11,9 @@
 
 namespace {
     #ifdef WIN32
-        #define PATH_STOP_WORDS "Utils\\StopWords\\russianStopWords.txt"
+        #define PATH_STOP_WORDS ..\\"Utils\\StopWords\\russianStopWords.txt"
     #else
-        #define PATH_STOP_WORDS "Utils/StopWords/stopWords.txt"
+        #define PATH_STOP_WORDS "../Utils/StopWords/stopWords.txt"
     #endif
 
     std::unordered_set<std::string> getStopWords(const std::string &path = PATH_STOP_WORDS) {

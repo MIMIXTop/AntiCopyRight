@@ -1,4 +1,4 @@
-#include "TextAnalyzer/Lemmatizer.hpp"
+#include "../src/TextAnalyzer/Lemmantizer/Lemmatizer.hpp"
 
 #include <gtest/gtest.h>
 #include <string>
@@ -17,7 +17,7 @@ TEST(LemmantizerTest, OneWord) {
 }
 
 TEST(LemmantizerTest, OneSentence) {
-    const std::string text = "привет, мир";
+    const std::string text = "привет, мир 1 2";
     std::vector lemmas = Lemmatizer::getLemmas(text);
 
     EXPECT_EQ(lemmas.size(), 2);

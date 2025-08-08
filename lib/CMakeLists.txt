@@ -1,10 +1,8 @@
 project(antyCopy_lib)
-
+set(CMAKE_AUTOMOC ON)
 file(GLOB_RECURSE SRCS src/*.cpp)
 
-add_library(antyCopy_lib STATIC ${SRCS}
-        src/Network/NetworkManager.cpp
-        src/Network/NetworkManager.hpp)
+add_library(antyCopy_lib STATIC ${SRCS})
 target_include_directories(antyCopy_lib PUBLIC src)
 target_compile_definitions(antyCopy_lib PRIVATE
         MYSTEM_EXECUTABLE="${MYSTEM_EXE}"
@@ -20,7 +18,8 @@ target_link_libraries(antyCopy_lib PUBLIC
 
 file(GLOB_RECURSE TEST_SRCS test/*.cpp)
 
-add_executable(antyCopy_tests ${TEST_SRCS})
+add_executable(antyCopy_tests ${TEST_SRCS}
+        test/test_network.cpp)
 add_dependencies(antyCopy_tests MyStemBinary)
 target_compile_definitions(antyCopy_tests PRIVATE
     MYSTEM_EXECUTABLE="${MYSTEM_EXE}"
