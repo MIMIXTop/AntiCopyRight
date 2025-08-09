@@ -1,5 +1,5 @@
 #include "NetworkManager.hpp"
-#include "RequestTypes.hpp"
+#include "ReplyTypes.hpp"
 
 #include <QFile>
 #include <QDir>
@@ -179,7 +179,7 @@ namespace Network {
                 return;
             }
 
-            emit responseToRequest(RequestTypes::Course(document.object()["courses"].toArray()));
+            emit responseToRequest(ReplyTypes::Type::Course(document.object()["courses"].toArray()));
             reply->deleteLater();
         });
     }
@@ -204,7 +204,7 @@ namespace Network {
                 return;
             }
 
-            emit responseToRequest(RequestTypes::StudentWorks(document.object()["studentSubmissions"].toArray()));
+            emit responseToRequest(ReplyTypes::Type::StudentWorks(document.object()["studentSubmissions"].toArray()));
         });
     }
 
@@ -230,7 +230,7 @@ namespace Network {
                 return;
             }
 
-            emit responseToRequest(RequestTypes::CourseWorks(document.object()["courseWork"].toArray()));
+            emit responseToRequest(ReplyTypes::Type::CourseWorks(document.object()["courseWork"].toArray()));
             reply->deleteLater();
         });
     }
@@ -251,17 +251,14 @@ namespace Network {
         QuaZipFile file(&zip);
         file.open(QIODevice::WriteOnly);
 
-        connect(reply, &QNetworkReply::finished, [this, reply, &file]() {
+        connect(reply, &QNetworkReply::finished, [this, reply]() {
             if (reply->error() != QNetworkReply::NoError) {
                 emit requestFailed("Network error: " + reply->errorString());
                 reply->deleteLater();
                 return;
             }
 
-            QByteArray data = reply->readAll();
-            file.write(data);
-
-            emit responseToRequest(RequestTypes::DownloadStudentWork());
+            emit responseToRequest(ReplyTypes::Type::DownloadStudentWork(reply->readAll()));
         });
     }
 } // Network

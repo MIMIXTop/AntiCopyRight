@@ -76,6 +76,7 @@ find_package(Qt6 COMPONENTS
         Network
         NetworkAuth
         Gui
+        Test
 )
 
 add_subdirectory(lib)

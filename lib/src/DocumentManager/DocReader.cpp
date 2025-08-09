@@ -2,13 +2,18 @@
 #include "DocReader.hpp"
 
 #include <QString>
+#include <QBuffer>
 #include <quazip/quazip.h>
+#include <quazip/quazipfile.h>
 #include <QXmlStreamReader>
 
-std::optional<QString> DocReader::readFile(const QString &document) {
+std::optional<QString> DocReader::readFile(QByteArray &document) {
     QString result;
 
-    QuaZip quaZip(document);
+    QBuffer buffer(&document);
+    buffer.open(QIODevice::ReadOnly);
+
+    QuaZip quaZip(&buffer);
     if (!quaZip.open(QuaZip::mdUnzip)) {
         qInfo() << "Could not open quazip file" << document;
         return std::nullopt;
@@ -16,7 +21,7 @@ std::optional<QString> DocReader::readFile(const QString &document) {
     if (!quaZip.setCurrentFile("word/document.xml")) {
         qInfo() << "Not find document.xml file in " << document;
         quaZip.close();
-        return  std::nullopt;
+        return std::nullopt;
     }
 
     QuaZipFile quaZipFile(&quaZip);
@@ -59,4 +64,3 @@ std::optional<QString> DocReader::readFile(const QString &document) {
 
     return result;
 }
-
