@@ -1,8 +1,15 @@
-#include <iostream>
+#include <QGuiApplication>
+#include <QQmlApplicationEngine>
 
-int main() {
-
-    std::cout << "https://youtu.be/xvFZjo5PgG0?si=AkVUMST4gQ_NMMu4"<< std::endl;
-
-    return 0;
+int main(int argc, char* argv[]) {
+    QGuiApplication app(argc, argv);
+    QQmlApplicationEngine engine;
+    QObject::connect(
+        &engine,
+        &QQmlApplicationEngine::objectCreationFailed,
+        &app,
+        []() { QCoreApplication::exit(-1); },
+        Qt::QueuedConnection);
+    engine.loadFromModule("QML_SRC", "Main");
+    return app.exec();
 }
