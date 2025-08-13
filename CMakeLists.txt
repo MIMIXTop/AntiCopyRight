@@ -7,6 +7,10 @@ include(ExternalProject)
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+set(CMAKE_AUTOMOC ON)
+set(CMAKE_AUTORCC ON)
+set(CMAKE_AUTOUIC ON)
+
 #LibTorch
 set(LIBTORCH_VERSION 2.7.1)
 
@@ -77,13 +81,21 @@ find_package(Qt6 COMPONENTS
         NetworkAuth
         Gui
         Test
+        Quick
 )
 
 add_subdirectory(lib)
 
 file(GLOB_RECURSE SRCS src/*.cpp)
 
-add_executable(AntiCopyRight ${SRCS})
+qt_add_executable(AntiCopyRight ${SRCS})
+
+qt_add_qml_module(AntiCopyRight
+        URI QML_SRC
+        VERSION 1.0
+        QML_FILES src/qml/Main.qml
+)
+
 add_dependencies(AntiCopyRight MyStemBinary)
 
 add_custom_command(
@@ -94,8 +106,16 @@ add_custom_command(
 )
 
 target_include_directories(${PROJECT_NAME} PUBLIC src)
-target_link_libraries(${PROJECT_NAME} PUBLIC antyCopy_lib)
+target_link_libraries(${PROJECT_NAME} PUBLIC antyCopy_lib Qt6::Quick)
 
 target_compile_definitions(AntiCopyRight PRIVATE
         MYSTEM_EXECUTABLE="${MYSTEM_EXE}"
 )
+
+include(GNUInstallDirs)
+install(TARGETS AntiCopyRight
+    BUNDLE DESTINATION .
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+)
+
