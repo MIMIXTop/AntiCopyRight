@@ -15,18 +15,14 @@
 
 #include <functional>
 
-#ifdef NETWORKMANAGER_TESTS
-class NetworkManagerTest;
-#endif
-
 namespace Network {
+
     enum class ConnectionState {
         Connected,
         Connecting,
         Disconnecting,
         Disconnected
     };
-
 
     class NetworkManager final : public QObject {
         Q_OBJECT
@@ -46,7 +42,7 @@ namespace Network {
 
         void downloadStudentWork(const QString &fileName, const QString &fileUrl);
 
-        void getListCoursesWorks(const QJsonArray &courses);
+        void getListCoursesWorks(const QJsonObject &course);
 
         void setConnectionState(ConnectionState state);
 
@@ -71,7 +67,7 @@ namespace Network {
 
         void startStudentsWorksRequest(const QString &courseId, const QString &courseWorkId);
 
-        void startCourseWorksRequest(const QJsonArray &courseWorks);
+        void startCourseWorksRequest(const QJsonObject &courseWorks);
 
         void startDownloadStudentWorksRequest(const QString &fileName, const QString &fileId);
 
@@ -93,7 +89,15 @@ namespace Network {
         quint64 NextId = 1;
 
 #ifdef NETWORKMANAGER_TESTS
-    friend class NetworkManagerTest;
+        friend struct NetworkManagerTestAccessor;
 #endif
     };
+#ifdef NETWORKMANAGER_TESTS
+    struct NetworkManagerTestAccessor {
+        static QNetworkAccessManager*& networkAccessManager(NetworkManager& n) { return n.manager; }
+        static QOAuth2AuthorizationCodeFlow*& oauth(NetworkManager& n) { return n.google; }
+        static ConnectionState& state(NetworkManager& n) { return n.connectedStatus; }
+    };
+#endif
+
 } // Network

@@ -15,8 +15,6 @@
 #include <QOAuthHttpServerReplyHandler>
 #include <QTimer>
 
-#include "torch/csrc/jit/ir/attributes.h"
-
 namespace {
 #ifdef WIN32
     #define CREDENTIALS_PATH "Util\\Network\\init.json"
@@ -45,9 +43,6 @@ namespace Network {
 
         QFile file(CREDENTIALS_PATH);
         file.open(QIODevice::ReadOnly);
-        // if (!) {
-        //     throw std::runtime_error("You need add init.json 'Google Cloud API'");
-        // }
 
         QJsonDocument document = QJsonDocument::fromJson(file.readAll());
         QJsonObject json = document.object()["installed"].toObject();
@@ -88,9 +83,9 @@ namespace Network {
         });
     }
 
-    void NetworkManager::getListCoursesWorks(const QJsonArray &courses) {
-        enqueueWhenConnecting("getListCoursesWorks", 10000, [this, courses]() {
-            startCourseWorksRequest(courses);
+    void NetworkManager::getListCoursesWorks(const QJsonObject &course) {
+        enqueueWhenConnecting("getListCoursesWorks", 10000, [this, course]() {
+            startCourseWorksRequest(course);
         });
     }
 
@@ -208,8 +203,8 @@ namespace Network {
         });
     }
 
-    void NetworkManager::startCourseWorksRequest(const QJsonArray &courses) {
-        QNetworkRequest request(QUrl("https://classroom.googleapis.com/v1/courses/" + courses.at(1)["id"].toString() + "/courseWork"));
+    void NetworkManager::startCourseWorksRequest(const QJsonObject &course) {
+        QNetworkRequest request(QUrl("https://classroom.googleapis.com/v1/courses/" + course["id"].toString() + "/courseWork"));
         request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
 
         request.setRawHeader("Authorization", "Bearer " + google->token().toLatin1());

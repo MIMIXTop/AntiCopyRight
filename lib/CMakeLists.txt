@@ -16,17 +16,18 @@ target_link_libraries(antyCopy_lib PUBLIC
         "${TORCH_LIBRARIES}"
 )
 
-#file(GLOB_RECURSE TEST_SRCS test/*.cpp)
+file(GLOB_RECURSE TEST_SRCS test/*.cpp)
 
-add_executable(antyCopy_tests
-        test/test_text_analyzer.cpp
-        test/test.cpp
-        test/test_model_func.cpp
-        test/macros_test.cpp
-        test/test_utils.cpp
-)
+add_executable(antyCopy_tests ${TEST_SRCS})
 add_dependencies(antyCopy_tests MyStemBinary)
 target_compile_definitions(antyCopy_tests PRIVATE
-    MYSTEM_EXECUTABLE="${MYSTEM_EXE}"
+        MYSTEM_EXECUTABLE="${MYSTEM_EXE}"
+        NETWORKMANAGER_TESTS=1
 )
-target_link_libraries(antyCopy_tests gtest gtest_main antyCopy_lib)
+target_link_libraries(antyCopy_tests
+        gtest
+        gtest_main
+        Qt6::Test
+        antyCopy_lib
+)
+
