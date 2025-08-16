@@ -83,10 +83,6 @@ find_package(Qt6 COMPONENTS
         Test
         Quick
 )
-find_package(Qt6 REQUIRED COMPONENTS Core)
-find_package(Qt6 REQUIRED COMPONENTS Core)
-find_package(Qt6 REQUIRED COMPONENTS Core)
-find_package(Qt6 REQUIRED COMPONENTS Core)
 
 add_subdirectory(lib)
 
@@ -94,11 +90,6 @@ file(GLOB_RECURSE SRCS src/*.cpp)
 
 qt_add_executable(AntiCopyRight ${SRCS})
 
-
-target_link_libraries(AntiCopyRight PRIVATE Qt6::Core)
-target_link_libraries(AntiCopyRight PRIVATE Qt6::Core)
-target_link_libraries(AntiCopyRight PRIVATE Qt6::Core)
-target_link_libraries(AntiCopyRight PRIVATE Qt6::Core)
 qt_add_qml_module(AntiCopyRight
         URI QML_SRC
         VERSION 1.0
