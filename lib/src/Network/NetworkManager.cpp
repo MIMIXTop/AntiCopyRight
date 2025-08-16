@@ -14,12 +14,15 @@
 #include <QNetworkReply>
 #include <QOAuthHttpServerReplyHandler>
 #include <QTimer>
+#include <QDebug>
+
+#include <iostream>
 
 namespace {
 #ifdef WIN32
     #define CREDENTIALS_PATH "Util\\Network\\init.json"
 #else
-    #define CREDENTIALS_PATH "../Utils/Network/init.json"
+    #define CREDENTIALS_PATH "Utils/Network/init.json"
 #endif
 }
 
@@ -32,13 +35,19 @@ namespace Network {
         google->setReplyHandler(replyHandler);
         connect(google, &QOAuth2AuthorizationCodeFlow::authorizeWithBrowser, &QDesktopServices::openUrl);
         connect(google, &QOAuth2AuthorizationCodeFlow::granted, [this]() {
-            this->connectedStatus = ConnectionState::Connected;
+            setConnectionState(ConnectionState::Connected);
+            qInfo() << "Connected";
+            emit isConnect();
         });
 
         if (std::filesystem::exists(CREDENTIALS_PATH)) {
             qInfo() << "Credentials";
+            std::cout << "Credentials\n";
+            std::cout << CREDENTIALS_PATH << std::endl;
         } else {
-            qInfo() << "No CREDENTIALS";
+            qDebug() << "No CREDENTIALS";
+            std::cout << "No CREDENTIALS\n";
+            std::cout << CREDENTIALS_PATH << std::endl;
         }
 
         QFile file(CREDENTIALS_PATH);
@@ -55,11 +64,19 @@ namespace Network {
         });
 
         google->setClientIdentifier(json["client_id"].toString());
-        google->setToken(json["client_secret"].toString());
+        google->setClientIdentifierSharedKey(json["client_secret"].toString());
         google->setAuthorizationUrl(QUrl(json["auth_uri"].toString()));
         google->setTokenUrl(QUrl(json["token_uri"].toString()));
+
+        setConnectionState(ConnectionState::Connecting);
+        authenticate();
     }
 
+
+    NetworkManager* NetworkManager::GetInstance() {
+        static NetworkManager instance;
+        return &instance;
+    }
 
     void NetworkManager::authenticate() const {
         google->grant();
@@ -94,7 +111,7 @@ namespace Network {
         connectedStatus = state;
         emit statusChanged(state);
 
-        if (state == ConnectionState::Connecting) {
+        if (state == ConnectionState::Connecting || state == ConnectionState::Connected) {
             drainPendingConnecting();
         } else if (state == ConnectionState::Disconnecting) {
             failAllPending("Not authenticated");
@@ -106,7 +123,7 @@ namespace Network {
             emit requestFailed(name + ": Not authenticated");
             return;
         }
-        if (connectedStatus == ConnectionState::Connecting) {
+        if (connectedStatus == ConnectionState::Connected) {
             action();
             return;
         }

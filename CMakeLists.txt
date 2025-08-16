@@ -83,6 +83,10 @@ find_package(Qt6 COMPONENTS
         Test
         Quick
 )
+find_package(Qt6 REQUIRED COMPONENTS Core)
+find_package(Qt6 REQUIRED COMPONENTS Core)
+find_package(Qt6 REQUIRED COMPONENTS Core)
+find_package(Qt6 REQUIRED COMPONENTS Core)
 
 add_subdirectory(lib)
 
@@ -90,10 +94,18 @@ file(GLOB_RECURSE SRCS src/*.cpp)
 
 qt_add_executable(AntiCopyRight ${SRCS})
 
+
+target_link_libraries(AntiCopyRight PRIVATE Qt6::Core)
+target_link_libraries(AntiCopyRight PRIVATE Qt6::Core)
+target_link_libraries(AntiCopyRight PRIVATE Qt6::Core)
+target_link_libraries(AntiCopyRight PRIVATE Qt6::Core)
 qt_add_qml_module(AntiCopyRight
         URI QML_SRC
         VERSION 1.0
-        QML_FILES src/qml/Main.qml
+        QML_FILES
+                src/qml/Main.qml
+                src/qml/SideBar.qml
+                src/qml/CourseItem.qml
 )
 
 add_dependencies(AntiCopyRight MyStemBinary)
@@ -106,7 +118,7 @@ add_custom_command(
 )
 
 target_include_directories(${PROJECT_NAME} PUBLIC src)
-target_link_libraries(${PROJECT_NAME} PUBLIC antyCopy_lib Qt6::Quick)
+target_link_libraries(${PROJECT_NAME} PUBLIC antyCopy_lib Qt6::Quick Qt6::Core)
 
 target_compile_definitions(AntiCopyRight PRIVATE
         MYSTEM_EXECUTABLE="${MYSTEM_EXE}"
@@ -118,4 +130,3 @@ install(TARGETS AntiCopyRight
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
 )
-

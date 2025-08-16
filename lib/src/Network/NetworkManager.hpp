@@ -24,14 +24,14 @@ namespace Network {
         Disconnected
     };
 
-    class NetworkManager final : public QObject {
+    class NetworkManager : public QObject {
         Q_OBJECT
 
     public:
+        static NetworkManager* GetInstance();
+        NetworkManager(const NetworkManager&) = delete;
+        NetworkManager& operator=(const NetworkManager&) = delete;
 
-        explicit NetworkManager(QObject *parent = nullptr);
-
-        ~NetworkManager() override = default;
 
         void authenticate() const;
 
@@ -46,7 +46,7 @@ namespace Network {
 
         void setConnectionState(ConnectionState state);
 
-        [[nodiscard]] ConnectionState getConnectionState() const { return connectedStatus; }
+        ConnectionState getConnectionState() const { return connectedStatus; }
     signals:
         void requestFailed(const QString &message);
 
@@ -54,7 +54,11 @@ namespace Network {
 
         void statusChanged(ConnectionState state);
 
+        void isConnect();
+
     private:
+
+        explicit NetworkManager(QObject *parent = nullptr);
         ///Methods for pending
         void enqueueWhenConnecting(const QString &name, quint64 timoutMs, std::function<void()> action);
 
@@ -80,11 +84,9 @@ namespace Network {
 
         QOAuth2AuthorizationCodeFlow *google;
         QOAuthHttpServerReplyHandler *replyHandler;
-        QNetworkRequestFactory apiClassroom{{"https://classroom.googleapis.com/v1"}};
-        QNetworkRequestFactory apiDrive{{"https://www.googleapis.com/v1/drive/v2"}};
         QNetworkAccessManager *manager;
 
-        ConnectionState connectedStatus = ConnectionState::Connected;
+        ConnectionState connectedStatus = ConnectionState::Disconnected;
         QHash<quint64, PendingAction> queueActions;
         quint64 NextId = 1;
 

@@ -104,7 +104,6 @@ private:
 class NetworkManagerTest : public ::testing::Test {
 protected:
     void SetUp() override {
-        nm = new Network::NetworkManager;
         delete Accessor::networkAccessManager(*nm);
         fakeNm = new FakeNetworkAccessManager(nm);
 
@@ -114,12 +113,10 @@ protected:
     }
 
     void TearDown() override {
-        delete nm;
-        nm = nullptr;
         fakeNm = nullptr;
     }
 
-    Network::NetworkManager *nm = nullptr;
+    Network::NetworkManager *nm = Network::NetworkManager::GetInstance();
     FakeNetworkAccessManager *fakeNm = nullptr;
 };
 
