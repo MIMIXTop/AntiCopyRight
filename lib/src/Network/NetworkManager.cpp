@@ -1,5 +1,6 @@
 #include "NetworkManager.hpp"
 #include "ReplyTypes.hpp"
+#include "keychaintokens.hpp"
 
 #include <QFile>
 #include <QDir>
@@ -15,8 +16,7 @@
 #include <QOAuthHttpServerReplyHandler>
 #include <QTimer>
 #include <QDebug>
-
-#include <iostream>
+#include <QAbstractOAuth>
 
 namespace {
 #ifdef WIN32
@@ -35,20 +35,36 @@ namespace Network {
         google->setReplyHandler(replyHandler);
         connect(google, &QOAuth2AuthorizationCodeFlow::authorizeWithBrowser, &QDesktopServices::openUrl);
         connect(google, &QOAuth2AuthorizationCodeFlow::granted, [this]() {
+            const auto refreshToken = google->refreshToken();
+            if (!refreshToken.isEmpty()) KeyChainTokens::saveRefreshToken(refreshToken, this);
             setConnectionState(ConnectionState::Connected);
-            qInfo() << "Connected";
-            emit isConnect();
+            qInfo() << "Connected with access token until" << google->expirationAt();
         });
+        connect(google, &QOAuth2AuthorizationCodeFlow::error, [this](const QString& error, const QString desc, const QUrl&){
+            qWarning() << "OAuth error:" << error << desc;
+            if (desc.contains("invalid_grant", Qt::CaseInsensitive)) {
+                KeyChainTokens::clearRefreshToken(this);
+            }
+        });
+        KeyChainTokens::loadRefreshToken([this](QString stored) {
+            const bool haveRefreshToken = !stored.isEmpty();
 
-        if (std::filesystem::exists(CREDENTIALS_PATH)) {
-            qInfo() << "Credentials";
-            std::cout << "Credentials\n";
-            std::cout << CREDENTIALS_PATH << std::endl;
-        } else {
-            qDebug() << "No CREDENTIALS";
-            std::cout << "No CREDENTIALS\n";
-            std::cout << CREDENTIALS_PATH << std::endl;
-        }
+            google->setModifyParametersFunction(
+                [needConsent = !haveRefreshToken](QAbstractOAuth::Stage stage,
+                                        QMultiMap<QString, QVariant>* params){
+                    if (stage == QAbstractOAuth::Stage::RequestingAuthorization){
+                        params->insert("access_type","offline");
+                        if (needConsent) params->insert("prompt", "consent");
+                    }
+                });
+
+            if (haveRefreshToken) {
+                google->setRefreshToken(stored);
+                google->refreshTokens();
+            } else {
+                google->grant();
+            }
+        }, this);
 
         QFile file(CREDENTIALS_PATH);
         file.open(QIODevice::ReadOnly);
@@ -69,7 +85,7 @@ namespace Network {
         google->setTokenUrl(QUrl(json["token_uri"].toString()));
 
         setConnectionState(ConnectionState::Connecting);
-        authenticate();
+        //authenticate();
     }
 
 

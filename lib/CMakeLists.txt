@@ -2,8 +2,9 @@ project(antyCopy_lib)
 set(CMAKE_AUTOMOC ON)
 file(GLOB_RECURSE SRCS src/*.cpp)
 
-add_library(antyCopy_lib STATIC ${SRCS})
-target_include_directories(antyCopy_lib PUBLIC src)
+add_library(antyCopy_lib STATIC ${SRCS}
+        src/Network/keychaintokens.cpp)
+target_include_directories(antyCopy_lib PUBLIC src ${QTKEYCHAIN_INCLUDE_DIRS} )
 target_compile_definitions(antyCopy_lib PRIVATE
         MYSTEM_EXECUTABLE="${MYSTEM_EXE}"
 )
@@ -14,6 +15,7 @@ target_link_libraries(antyCopy_lib PUBLIC
         Qt6::NetworkAuth
         Qt6::Gui
         "${TORCH_LIBRARIES}"
+        qt6keychain
 )
 
 file(GLOB_RECURSE TEST_SRCS test/*.cpp)

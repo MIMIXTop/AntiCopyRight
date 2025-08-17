@@ -54,8 +54,6 @@ namespace Network {
 
         void statusChanged(ConnectionState state);
 
-        void isConnect();
-
     private:
 
         explicit NetworkManager(QObject *parent = nullptr);

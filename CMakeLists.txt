@@ -11,6 +11,12 @@ set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC ON)
 
+set(BUILD_TESTS OFF CACHE BOOL "" FORCE)
+set(BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+set(BUILD_WITH_QT6 ON CACHE BOOL "" FORCE)
+set(BUILD_WITH_QT5 OFF CACHE BOOL "" FORCE)
+
+
 #LibTorch
 set(LIBTORCH_VERSION 2.7.1)
 
@@ -53,6 +59,9 @@ ExternalProject_Add(
 ExternalProject_Get_Property(MyStemBinary SOURCE_DIR)
 set(MYSTEM_EXE "${SOURCE_DIR}/mystem" CACHE INTERNAL "Path to MyStem binary")
 
+set(BUILD_TESTS OFF CACHE BOOL "" FORCE)
+set(BUILD_WITH_QT6 ON  CACHE BOOL "" FORCE)
+
 FetchContent_Declare(
         googletest
         GIT_REPOSITORY https://github.com/google/googletest.git
@@ -70,11 +79,16 @@ FetchContent_Declare(
         URL ${LIBTORCH_URL}
 )
 
-FetchContent_MakeAvailable(googletest quazip libtorch)
+FetchContent_Declare(
+        qtkeychain
+        GIT_REPOSITORY https://github.com/frankosterfeld/qtkeychain.git
+        GIT_TAG ad7344c45a86a4f66cbafc4b081b5f7b876cb0b7
+)
+
+FetchContent_MakeAvailable(googletest quazip libtorch qtkeychain)
 
 list(APPEND CMAKE_PREFIX_PATH ${libtorch_SOURCE_DIR})
 find_package(Torch REQUIRED)
-
 find_package(Qt6 COMPONENTS
         Core
         Network
