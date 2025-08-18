@@ -7,18 +7,20 @@
 
 #include <vector>
 
-class CoursWorksListModel final : public QAbstractListModel
+class CoursWorksListModel : public QAbstractListModel
 {
     Q_OBJECT
 public:
     enum Roles {IdRole = Qt::UserRole + 1, NameRole, DescriptionRole, CourseIdRole, WorkIdRole};
     Q_ENUM(Roles)
 
-    explicit CoursWorksListModel(QJsonArray data, QObject *parent = nullptr);
+    explicit CoursWorksListModel(QObject *parent = nullptr);
 
     QVariant data(const QModelIndex& index, int role) const override;
-    int rowCount(const QModelIndex&) const override;
+    int rowCount(const QModelIndex& paren = QModelIndex()) const override;
     QHash<int, QByteArray> roleNames() const override;
+
+    Q_INVOKABLE void updateWorks(const QString& courseId);
 
 private:
     struct Work {
@@ -29,5 +31,9 @@ private:
         QString workId;
     };
 
+    void onReply(ReplyTypes::Reply reply);
+
     std::vector<Work> m_works;
+    QString m_currentCourseId;
+    Network::NetworkManager *nm = Network::NetworkManager::GetInstance();
 };

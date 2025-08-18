@@ -3,20 +3,22 @@ import QtQuick.Controls
 
 import MyModels
 
-ScrollView {
-    ListView {
-        CourseModel {
-            id: courses
-        }
+ListView {
+    signal courseSelected(string courseId)
+    CourseModel {
+        id: courses
+    }
 
-        id: _SideBar
-        model: courses
-        delegate: CourseItem {
-            name: nameCourse
-            id: _backGroung
-            anchors.leftMargin: 10
-            height: 70
-            width: parent.width
+    id: _SideBar
+    model: courses
+    delegate: CourseItem {
+        name: nameCourse
+        height: 50
+        width: parent.width
+
+        onClicked: {
+            _SideBar.courseSelected(courseId)
+            console.log(courseId)
         }
     }
 }

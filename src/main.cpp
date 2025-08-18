@@ -3,8 +3,6 @@
 #include <QFile>
 #include <QObject>
 
-#include <iostream>
-
 #include <QmlModels/courselistmodel.hpp>
 #include <QmlModels/coursworkslistmodel.hpp>
 #include <QmlModels/proxymodel.hpp>
@@ -14,8 +12,8 @@ int main(int argc, char* argv[]) {
     QQmlApplicationEngine engine;
 
     qmlRegisterType<CourseListModel>("MyModels", 1, 0, "CourseModel");
-    // qmlRegisterType<CoursWorksListModel>("MyModels", 1, 0, "WorksModel");
-    // qmlRegisterType<ProxyModel>("MyModels", 1, 0, "WorksByCoursProxy");
+    qmlRegisterType<CoursWorksListModel>("MyModels", 1, 0, "WorksModel");
+    qmlRegisterType<ProxyModel>("MyModels", 1, 0, "WorksByCoursProxy");
 
     QObject::connect(
         &engine,
@@ -23,6 +21,7 @@ int main(int argc, char* argv[]) {
         &app,
         []() { QCoreApplication::exit(-1); },
         Qt::QueuedConnection);
+
     engine.loadFromModule("QML_SRC", "Main");
     return app.exec();
 }

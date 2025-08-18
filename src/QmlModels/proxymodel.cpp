@@ -2,17 +2,19 @@
 
 #include "coursworkslistmodel.hpp"
 
-ProxyModel::ProxyModel(QObject *parent) : QSortFilterProxyModel{parent} {}
+ProxyModel::ProxyModel(QObject *parent) : QSortFilterProxyModel{parent} {
+    setFilterCaseSensitivity(Qt::CaseInsensitive);
+    setDynamicSortFilter(true);
+}
 
-int ProxyModel::selectedCourseId() const
-{
+QString ProxyModel::selectedCourseId() const
+{  
     return m_coursId;
 }
 
-void ProxyModel::setSelectedCourseId(int id)
+void ProxyModel::setSelectedCourseId(const QString& id)
 {
     if (m_coursId == id) return;
-
     m_coursId = id;
     emit selectedCourseIdChanged();
     invalidateFilter();
@@ -20,7 +22,10 @@ void ProxyModel::setSelectedCourseId(int id)
 
 bool ProxyModel::filterAcceptsRow(int sourceRow, const QModelIndex &sourceParent) const
 {
+    if(!sourceModel()) return true;
     const auto index = sourceModel()->index(sourceRow, 0, sourceParent);
-    const int courseId = sourceModel()->data(index, CoursWorksListModel::CourseIdRole).toInt();
-    return m_coursId == 0 ? true : (courseId == m_coursId);
+    if (!index.isValid()) return false;
+
+    const QString courseId = sourceModel()->data(index, CoursWorksListModel::CourseIdRole).toString();
+    return m_coursId.isEmpty() ? true : (courseId == m_coursId);
 }

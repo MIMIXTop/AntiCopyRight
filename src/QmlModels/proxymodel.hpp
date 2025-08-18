@@ -6,11 +6,11 @@
 class ProxyModel : public QSortFilterProxyModel
 {
     Q_OBJECT
-    Q_PROPERTY(int selectedCourseId READ selectedCourseId WRITE setSelectedCourseId NOTIFY selectedCourseIdChanged FINAL)
+    Q_PROPERTY(QString selectedCourseId READ selectedCourseId WRITE setSelectedCourseId NOTIFY selectedCourseIdChanged FINAL)
 public:
     explicit ProxyModel(QObject *parent = nullptr);
-    int selectedCourseId() const;
-    void setSelectedCourseId(int id);
+    QString selectedCourseId() const;
+    void setSelectedCourseId(const QString& id);
 
 signals:
     void selectedCourseIdChanged();
@@ -18,5 +18,5 @@ signals:
 protected:
     bool filterAcceptsRow(int sourceRow, const QModelIndex& sourceParent) const override;
 private:
-    int m_coursId{0};
+    QString m_coursId;
 };

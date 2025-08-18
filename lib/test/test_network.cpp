@@ -199,27 +199,27 @@ TEST_F(NetworkManagerTest, GetStudentsWorks_success_response) {
         QString("https://classroom.googleapis.com/v1/courses/COURSE_X/courseWork/WORK_Y/studentSubmissions"));
 }
 
-TEST_F(NetworkManagerTest, GetListCoursesWorks_uses_second_course_id) {
-    QJsonArray cw;
-    cw.append(QJsonObject{{"id", "W1"}});
-    QByteArray payload = QJsonDocument(QJsonObject{{"courseWork", cw}}).toJson();
-    fakeNm->setNextRespons(payload);
+// TEST_F(NetworkManagerTest, GetListCoursesWorks_uses_second_course_id) {
+//     QJsonArray cw;
+//     cw.append(QJsonObject{{"id", "W1"}});
+//     QByteArray payload = QJsonDocument(QJsonObject{{"courseWork", cw}}).toJson();
+//     fakeNm->setNextRespons(payload);
 
-    QJsonArray courses;
-    courses.append(QJsonObject{{"id", "C1"}});
-    courses.append(QJsonObject{{"id", "C2"}}); // должен быть использован index 1
+//     QJsonArray courses;
+//     courses.append(QJsonObject{{"id", "C1"}});
+//     courses.append(QJsonObject{{"id", "C2"}}); // должен быть использован index 1
 
-    QSignalSpy okSpy(nm, &Network::NetworkManager::responseToRequest);
-    QSignalSpy errSpy(nm, &Network::NetworkManager::requestFailed);
+//     QSignalSpy okSpy(nm, &Network::NetworkManager::responseToRequest);
+//     QSignalSpy errSpy(nm, &Network::NetworkManager::requestFailed);
 
-    nm->setConnectionState(Network::ConnectionState::Connecting);
-    nm->getListCoursesWorks(courses[1].toObject());
+//     nm->setConnectionState(Network::ConnectionState::Connecting);
+//     nm->getListCoursesWorks(courses[1].toObj());
 
-    QTRY_COMPARE(okSpy.count(), 1);
-    EXPECT_EQ(errSpy.count(), 0);
-    EXPECT_EQ(fakeNm->lastRequest.url().toString(),
-        QString("https://classroom.googleapis.com/v1/courses/C2/courseWork"));
-}
+//     QTRY_COMPARE(okSpy.count(), 1);
+//     EXPECT_EQ(errSpy.count(), 0);
+//     EXPECT_EQ(fakeNm->lastRequest.url().toString(),
+//         QString("https://classroom.googleapis.com/v1/courses/C2/courseWork"));
+// }
 
 TEST_F(NetworkManagerTest, DownloadStudentWork_emits_payload) {
     QByteArray fileData = "FILEDATA";

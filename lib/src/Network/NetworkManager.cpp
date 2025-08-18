@@ -73,10 +73,11 @@ namespace Network {
         QJsonObject json = document.object()["installed"].toObject();
 
         google->setRequestedScopeTokens({
-            "https://www.googleapis.com/auth/classroom.coursework.students",
-            "https://www.googleapis.com/auth/classroom.coursework.students.readonly",
-            "https://www.googleapis.com/auth/drive.readonly",
-            "https://www.googleapis.com/auth/classroom.courses"
+                                         "https://www.googleapis.com/auth/classroom.coursework.students",
+                                         "https://www.googleapis.com/auth/classroom.coursework.students.readonly",
+                                         "https://www.googleapis.com/auth/drive.readonly",
+                                         "https://www.googleapis.com/auth/classroom.courses",
+
         });
 
         google->setClientIdentifier(json["client_id"].toString());
@@ -116,9 +117,9 @@ namespace Network {
         });
     }
 
-    void NetworkManager::getListCoursesWorks(const QJsonObject &course) {
-        enqueueWhenConnecting("getListCoursesWorks", 10000, [this, course]() {
-            startCourseWorksRequest(course);
+    void NetworkManager::getListCoursesWorks(const QString &courseId) {
+        enqueueWhenConnecting("getListCoursesWorks", 10000, [this, courseId]() {
+            startCourseWorksRequest(courseId);
         });
     }
 
@@ -236,8 +237,8 @@ namespace Network {
         });
     }
 
-    void NetworkManager::startCourseWorksRequest(const QJsonObject &course) {
-        QNetworkRequest request(QUrl("https://classroom.googleapis.com/v1/courses/" + course["id"].toString() + "/courseWork"));
+    void NetworkManager::startCourseWorksRequest(const QString &courseId) {
+        QNetworkRequest request(QUrl("https://classroom.googleapis.com/v1/courses/"+ courseId +"/courseWork"));
         request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
 
         request.setRawHeader("Authorization", "Bearer " + google->token().toLatin1());

@@ -26,6 +26,8 @@ private:
         int id;
     };
 
+    void onReply(ReplyTypes::Reply reply);
+
     std::vector<Course> m_courses;
     Network::NetworkManager *manager = Network::NetworkManager::GetInstance();
 };

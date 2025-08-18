@@ -42,7 +42,7 @@ namespace Network {
 
         void downloadStudentWork(const QString &fileName, const QString &fileUrl);
 
-        void getListCoursesWorks(const QJsonObject &course);
+        void getListCoursesWorks(const QString &courseId);
 
         void setConnectionState(ConnectionState state);
 
@@ -69,7 +69,7 @@ namespace Network {
 
         void startStudentsWorksRequest(const QString &courseId, const QString &courseWorkId);
 
-        void startCourseWorksRequest(const QJsonObject &courseWorks);
+        void startCourseWorksRequest(const QString &);
 
         void startDownloadStudentWorksRequest(const QString &fileName, const QString &fileId);
 
