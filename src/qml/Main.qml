@@ -1,6 +1,5 @@
 import QtQuick
 import QtQuick.Window
-import QtQuick.Controls
 import QtQuick.Layouts
 
 import MyModels
@@ -44,33 +43,9 @@ Window {
             clip: true
             spacing: 10
 
-            delegate: Rectangle {
+            delegate: WorkItem {
                 id: _worksItem
-                width: parent.width
                 anchors.margins: 10
-                height: 50
-                radius: 10
-
-                color: _actionArea.containsMouse ? "silver" : "white"
-                border.width: 5
-                border.color: _actionArea.containsMouse ? "blue" : "silver"
-
-                Behavior on color {
-                    ColorAnimation {
-                        duration: 120
-                    }
-                }
-
-                Text {
-                    anchors.centerIn: parent
-                    text: name
-                }
-
-                MouseArea {
-                    id: _actionArea
-                    anchors.fill: parent
-                    hoverEnabled: true
-                }
             }
         }
     }

@@ -7,6 +7,8 @@ include(ExternalProject)
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC ON)
@@ -89,7 +91,7 @@ FetchContent_MakeAvailable(googletest quazip libtorch qtkeychain)
 
 list(APPEND CMAKE_PREFIX_PATH ${libtorch_SOURCE_DIR})
 find_package(Torch REQUIRED)
-find_package(Qt6 COMPONENTS
+find_package(Qt6 REQUIRED COMPONENTS
         Core
         Network
         NetworkAuth
@@ -97,6 +99,7 @@ find_package(Qt6 COMPONENTS
         Test
         Quick
 )
+find_package(Qt6 REQUIRED COMPONENTS Core)
 
 add_subdirectory(lib)
 
@@ -104,6 +107,8 @@ file(GLOB_RECURSE SRCS src/*.cpp)
 
 qt_add_executable(AntiCopyRight ${SRCS})
 
+
+target_link_libraries(AntiCopyRight PRIVATE Qt6::Core)
 qt_add_qml_module(AntiCopyRight
         URI QML_SRC
         VERSION 1.0
@@ -111,6 +116,7 @@ qt_add_qml_module(AntiCopyRight
                 src/qml/Main.qml
                 src/qml/SideBar.qml
                 src/qml/CourseItem.qml
+                src/qml/WorkItem.qml
 )
 
 add_dependencies(AntiCopyRight MyStemBinary)

@@ -2,6 +2,7 @@
 #include "ReplyTypes.hpp"
 #include "keychaintokens.hpp"
 
+#include <QString>
 #include <QFile>
 #include <QDir>
 #include <QBuffer>
@@ -17,6 +18,7 @@
 #include <QTimer>
 #include <QDebug>
 #include <QAbstractOAuth>
+class QAbstractOAuth;
 
 namespace {
 #ifdef WIN32
@@ -28,12 +30,13 @@ namespace {
 
 namespace Network {
     NetworkManager::NetworkManager(QObject *parent) : QObject(parent) {
-        google = new QOAuth2AuthorizationCodeFlow(this);
-        manager = new QNetworkAccessManager(this);
-        replyHandler = new QOAuthHttpServerReplyHandler(this);
+
+        google = new QOAuth2AuthorizationCodeFlow();
+        manager = new QNetworkAccessManager();
+        replyHandler = new QOAuthHttpServerReplyHandler();
 
         google->setReplyHandler(replyHandler);
-        connect(google, &QOAuth2AuthorizationCodeFlow::authorizeWithBrowser, &QDesktopServices::openUrl);
+        connect(google, &QAbstractOAuth::authorizeWithBrowser, &QDesktopServices::openUrl);
         connect(google, &QOAuth2AuthorizationCodeFlow::granted, [this]() {
             const auto refreshToken = google->refreshToken();
             if (!refreshToken.isEmpty()) KeyChainTokens::saveRefreshToken(refreshToken, this);
@@ -77,6 +80,7 @@ namespace Network {
                                          "https://www.googleapis.com/auth/classroom.coursework.students.readonly",
                                          "https://www.googleapis.com/auth/drive.readonly",
                                          "https://www.googleapis.com/auth/classroom.courses",
+                                         "https://www.googleapis.com/auth/classroom.rosters.readonly"
 
         });
 
@@ -120,6 +124,13 @@ namespace Network {
     void NetworkManager::getListCoursesWorks(const QString &courseId) {
         enqueueWhenConnecting("getListCoursesWorks", 10000, [this, courseId]() {
             startCourseWorksRequest(courseId);
+        });
+    }
+
+    void NetworkManager::getStudentsList(const QString &courseId)
+    {
+        enqueueWhenConnecting("getStudentsList", 10000, [this, courseId](){
+            startStudentListRequest(courseId);
         });
     }
 
@@ -288,6 +299,26 @@ namespace Network {
             }
 
             emit responseToRequest(ReplyTypes::Type::DownloadStudentWork(reply->readAll()));
+        });
+    }
+
+    void NetworkManager::startStudentListRequest(const QString &courseId)
+    {
+        QNetworkRequest request(QUrl("https://classroom.googleapis.com/v1/courses/"+ courseId +"/students"));
+        request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+
+        request.setRawHeader("Authorization", "Bearer " + google->token().toLatin1());
+
+        QNetworkReply *reply = manager->get(request);
+
+        connect(reply, &QNetworkReply::finished, [this, reply](){
+            if (reply->error() != QNetworkReply::NoError) {
+                emit requestFailed("Network error: " + reply->errorString());
+                reply->deleteLater();
+                return;
+            }
+
+            emit responseToRequest(ReplyTypes::Type::StudentList(QJsonDocument::fromJson(reply->readAll()).object()["students"].toArray()));
         });
     }
 } // Network

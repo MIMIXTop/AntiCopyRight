@@ -12,6 +12,7 @@
 #include <QJsonDocument>
 #include <QHash>
 #include <QTimer>
+#include <QThread>
 
 #include <functional>
 
@@ -44,6 +45,8 @@ namespace Network {
 
         void getListCoursesWorks(const QString &courseId);
 
+        void getStudentsList(const QString &courseId);
+
         void setConnectionState(ConnectionState state);
 
         ConnectionState getConnectionState() const { return connectedStatus; }
@@ -72,6 +75,8 @@ namespace Network {
         void startCourseWorksRequest(const QString &);
 
         void startDownloadStudentWorksRequest(const QString &fileName, const QString &fileId);
+
+        void startStudentListRequest(const QString &courseId);
 
         struct PendingAction {
             quint64 Id;
