@@ -21,7 +21,12 @@ namespace ReplyTypes {
         struct StudentWorks {
             QJsonArray studentWorks;
         };
+
+        struct StudentList
+        {
+            QJsonArray studentsList;
+        };
     }
 
-    using Reply = std::variant<Type::Course, Type::CourseWorks, Type::DownloadStudentWork, Type::StudentWorks>;
+    using Reply = std::variant<Type::Course, Type::CourseWorks, Type::DownloadStudentWork, Type::StudentWorks, Type::StudentList>;
 }

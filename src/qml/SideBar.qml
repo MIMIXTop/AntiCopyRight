@@ -12,13 +12,13 @@ ListView {
     id: _SideBar
     model: courses
     delegate: CourseItem {
+        id: _delegateCourseItem
         name: nameCourse
         height: 50
         width: parent.width
 
         onClicked: {
             _SideBar.courseSelected(courseId)
-            console.log(courseId)
         }
     }
 }
