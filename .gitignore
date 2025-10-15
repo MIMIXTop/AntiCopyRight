@@ -9,4 +9,4 @@
 
 /build/
 /cmake-build-*/
-/Utils/Network/*
+/Utils/
