@@ -1,6 +1,7 @@
 project(antyCopy_lib)
 set(CMAKE_AUTOMOC ON)
 file(GLOB_RECURSE SRCS src/*.cpp)
+find_package(Boost REQUIRED json)
 
 add_library(antyCopy_lib STATIC ${SRCS}
         src/Network/keychaintokens.cpp)
@@ -16,6 +17,8 @@ target_link_libraries(antyCopy_lib PUBLIC
         Qt6::Gui
         "${TORCH_LIBRARIES}"
         qt6keychain
+        Boost::headers
+        Boost::json
 )
 
 file(GLOB_RECURSE TEST_SRCS test/*.cpp)
