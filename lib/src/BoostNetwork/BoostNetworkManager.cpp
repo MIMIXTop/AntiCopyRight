@@ -1,19 +1,11 @@
 #include "BoostNetworkManager.hpp"
-#include <ATen/core/interned_strings.h>
 #include <boost/asio.hpp>
-#include <boost/asio/io_context.hpp>
 #include <boost/beast.hpp>
-#include <boost/beast/core/flat_buffer.hpp>
-#include <boost/beast/http/message_fwd.hpp>
-#include <boost/beast/http/string_body_fwd.hpp>
 #include <boost/json.hpp>
-#include <chrono>
-#include <exception>
 #include <fstream>
 #include <iostream>
 #include <memory>
 #include <string>
-#include <thread>
 
 namespace {
 #ifdef WIN32
@@ -21,62 +13,168 @@ namespace {
 #else
 #define CREDENTIALS_PATH "../Utils/Network/init.json"
 #endif
+
+    template<StringConteiner... Conteiners>
+    std::string foldString(const Conteiners &... conteiners) {
+        std::ostringstream oss;
+        auto append = [&](const auto &c) {
+            for (auto &&s: c) {
+                oss << s << " ";
+            }
+        };
+        (append(conteiners), ...);
+        return oss.str();
+    }
 } // namespace
 
 namespace asio = boost::asio;
 namespace beast = boost::beast;
-namespace http = beast::http;
 namespace json = boost::json;
+namespace http = beast::http;
 using tcp = asio::ip::tcp;
 
 Server::Server(std::vector<std::string> scopes, int port)
-    : port_(port) {
-  ;
-  load_config(scopes);
-}
-
-void Server::load_config(std::vector<std::string> scopes) {
-  std::ifstream file(CREDENTIALS_PATH);
-  if (!file.is_open()) {
-    throw std::runtime_error("Cannot open config file");
-  }
-  std::string configFile((std::istreambuf_iterator(file)),
-                         std::istreambuf_iterator<char>());
-  json::object jsonFile = json::parse(configFile).as_object();
-
-  config_.authUrl = "https://accounts.google.com/o/oauth2/v2/auth?";
-  config_.clientId = jsonFile.at("installed").at("client_id").as_string();
-  std::ranges::for_each(scopes, [this](auto &s) { config_.scope.append(s); });
-  config_.redirectUrl = std::format("http://127.0.0.1:{}", port_);
-  config_.responseType = "code";
-}
-
-std::vector<std::string> Server::getDefaultScope() {
-  return {
-      "https://www.googleapis.com/auth/classroom.coursework.students",
-      "https://www.googleapis.com/auth/classroom.coursework.students.readonly",
-      "https://www.googleapis.com/auth/drive.readonly",
-      "https://www.googleapis.com/auth/classroom.courses",
-      "https://www.googleapis.com/auth/classroom.rosters.readonly"};
-}
-
-void Server::handleRequest() {}
-
-std::string Server::getAuthUrl() {
-  std::string authUrl = config_.authUrl;
-  authUrl += "scope=" + config_.scope + '&';
-  authUrl += "response_type=" + config_.responseType + '&';
-  authUrl += "redirect_uri=" + config_.redirectUrl + '&';
-  authUrl += "client_id=" + config_.clientId;
-  return authUrl;
-}
-
-void Server::authenticate() {}
-
-void Server::run_server() {
-  
+    : port_(port), ctx(asio::ssl::context::tls_client){
+    load_config(scopes);
 }
 
 Server::~Server() {
+}
 
+std::string Server::getAuthUrl() {
+    std::string authUrl = "https://accounts.google.com/o/oauth2/v2/auth?";
+    authUrl += std::format("scope={}&", config_.scope);
+    authUrl += std::format("response_type=code&");
+    authUrl += std::format("redirect_uri=http://{}:{}/code&", host_, port_);
+    authUrl += std::format("client_id={}", config_.clientId);
+    return authUrl;
+}
+
+bool Server::EmptyAccessToken() {
+    return  config_.accessToken.empty();
+}
+
+bool Server::EmptyRefreshToken() {
+    return config_.refreshToken.empty();
+}
+
+void Server::load_config(const std::vector<std::string> &scopes) {
+    std::ifstream file(CREDENTIALS_PATH);
+    if (!file.is_open()) {
+        throw std::runtime_error("Cannot open config file");
+    }
+    std::string configFile((std::istreambuf_iterator(file)),
+                           std::istreambuf_iterator<char>());
+    json::object jsonFile = json::parse(configFile).as_object();
+
+    config_.clientId = jsonFile.at("installed").at("client_id").as_string();
+    config_.clientSecret = jsonFile.at("installed").at("client_secret").as_string();
+    config_.scope = foldString(scopes);
+
+}
+
+std::vector<std::string> Server::getDefaultScope() {
+    return {
+        "https://www.googleapis.com/auth/classroom.coursework.students",
+        "https://www.googleapis.com/auth/classroom.coursework.students.readonly",
+        "https://www.googleapis.com/auth/drive.readonly",
+        "https://www.googleapis.com/auth/classroom.courses",
+        "https://www.googleapis.com/auth/classroom.rosters.readonly"
+    };
+}
+
+void Server::run_server() {
+    asio::signal_set signals{ioc, SIGINT, SIGTERM};
+    signals.async_wait([this] (auto, auto) {
+        ioc.stop();
+    });
+    asio::co_spawn(ioc, listen(), asio::detached);
+    ioc.run();
+}
+
+asio::awaitable<void> Server::listen() {
+    const auto executor = co_await asio::this_coro::executor;
+
+    tcp::acceptor acceptor{executor};
+    tcp::endpoint endpoint{asio::ip::tcp::v4(), port_};
+
+    acceptor.open(endpoint.protocol());
+    acceptor.set_option(tcp::acceptor::reuse_address(true));
+    acceptor.bind(endpoint);
+    acceptor.listen();
+
+    while (true) {
+        auto socket = co_await acceptor.async_accept(asio::use_awaitable);
+        asio::co_spawn(ioc, workWithClient(std::move(socket)),asio::detached);
+    }
+}
+asio::awaitable<void> Server::workWithClient(tcp::socket socket) {
+    beast::flat_buffer buffer;
+    http::request<http::string_body> req;
+
+    co_await http::async_read(socket, buffer, req, asio::use_awaitable);
+
+    std::string_view target = req.target();
+    if (auto authCode = extractCode(target); !authCode.empty()) {
+        config_.code = authCode;
+        co_await getTokens();
+
+        http::response<http::string_body> res;
+        res.set(http::field::content_type, "text/html");
+        res.body() = "Authorization successful! You can close this tab.";
+        res.prepare_payload();
+        co_await http::async_write(socket, res, asio::use_awaitable);
+    }
+}
+
+asio::awaitable<void> Server::getTokens() {
+    try {
+        asio::ssl::stream<tcp::socket> ssl_socket{ioc, ctx};
+        tcp::resolver resolver{ioc};
+
+        auto result = co_await resolver.async_resolve("oauth2.googleapis.com", "443", asio::use_awaitable);
+        co_await asio::async_connect(ssl_socket.next_layer(), result, asio::use_awaitable);
+        co_await ssl_socket.async_handshake(asio::ssl::stream_base::client, asio::use_awaitable);
+
+        http::request<http::string_body> req{http::verb::post, "/token", 11};
+        req.set(http::field::host, "oauth2.googleapis.com");
+        req.set(http::field::content_type, "application/x-www-form-urlencoded");
+        req.set(http::field::accept, "application/json");
+        req.set(http::field::user_agent, BOOST_BEAST_VERSION_STRING);
+        req.body() = "code=" + config_.code + "&" +
+                     "client_id=" + config_.clientId + "&" +
+                     "client_secret=" + config_.clientSecret + "&" +
+                     "redirect_uri=http://127.0.0.1:8080/code&" +
+                     "grant_type=authorization_code";
+        req.prepare_payload();
+
+        co_await http::async_write(ssl_socket, req, asio::use_awaitable);
+        beast::flat_buffer buffer;
+        http::response<http::string_body> res;
+        co_await http::async_read(ssl_socket, buffer, res, asio::use_awaitable);
+        handleGetTokens(res.body());
+    } catch (const std::exception& e) {
+        std::cerr << "Server error(get tokent)" << e.what() << std::endl;
+    }
+}
+
+void Server::handleGetTokens(std::string_view boby) {
+    auto resBody = json::parse(boby).as_object();
+
+    config_.accessToken = resBody["access_token"].as_string();
+    config_.refreshToken = resBody["refresh_token"].as_string();
+}
+
+std::string Server::extractCode(std::string_view code) {
+    auto pos = code.find("code=");
+    if (pos == std::string::npos) {
+        return "";
+    }
+
+    std::string_view codePart = code.substr(pos + 5);
+    auto endPos = codePart.find('&');
+    if (endPos != std::string::npos) {
+        return std::string(codePart.substr(0, endPos));
+    }
+    return std::string(codePart);
 }

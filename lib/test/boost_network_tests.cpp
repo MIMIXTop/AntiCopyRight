@@ -1,11 +1,34 @@
 #include <BoostNetwork/BoostNetworkManager.hpp>
 
 #include <gtest/gtest.h>
+#include <gmock/gmock.h>
 
 TEST(BoostNetvorkServerTest, GetAuthUrl) {
-    std::vector<std::string> scopes = {"hell ", "got"};
+    std::vector<std::string> scopes = {"hell", "got"};
 
     Server server(scopes, 8080);
-    std::string authUrl = "https://accounts.google.com/o/oauth2/v2/auth?scope=hell got&response_type=code&redirect_uri=http://127.0.0.1:8080&client_id=432535903855-baoigtoh3milri8h727fjtniorbqkacj.apps.googleusercontent.com";
-    EXPECT_EQ(authUrl, server.getAuthUrl());
+    std::string authUrl = server.getAuthUrl();
+    EXPECT_THAT(authUrl, testing::HasSubstr("scope=hell got "));
+    EXPECT_THAT(authUrl, testing::HasSubstr("response_type=code"));
+    EXPECT_THAT(authUrl, testing::HasSubstr("redirect_uri=http://127.0.0.1:8080/code"));
+    EXPECT_THAT(authUrl, testing::HasSubstr("client_id="));
+}
+
+TEST(BoostNetvorkServerTest, VoidTest) {
+    Server server;
+    std::cout << server.getAuthUrl() << std::endl;
+    std::thread th{[&server] {
+       server.run_server();
+    }};
+    while (server.EmptyAccessToken()) {
+        std::this_thread::sleep_for(std::chrono::seconds(5));
+    }
+    EXPECT_FALSE(server.EmptyAccessToken());
+
+    while (server.EmptyRefreshToken()) {
+        std::this_thread::sleep_for(std::chrono::seconds(5));
+    }
+    EXPECT_FALSE(server.EmptyRefreshToken());
+
+    th.detach();
 }

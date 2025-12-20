@@ -9,6 +9,7 @@ target_include_directories(antyCopy_lib PUBLIC src ${QTKEYCHAIN_INCLUDE_DIRS} )
 target_compile_definitions(antyCopy_lib PRIVATE
         MYSTEM_EXECUTABLE="${MYSTEM_EXE}"
 )
+find_package(OpenSSL REQUIRED)
 target_link_libraries(antyCopy_lib PUBLIC
         QuaZip::QuaZip
         Qt6::Core
@@ -19,6 +20,8 @@ target_link_libraries(antyCopy_lib PUBLIC
         qt6keychain
         Boost::headers
         Boost::json
+        OpenSSL::SSL
+        OpenSSL::Crypto
 )
 
 file(GLOB_RECURSE TEST_SRCS test/*.cpp)
