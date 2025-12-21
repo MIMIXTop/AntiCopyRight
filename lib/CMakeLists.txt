@@ -22,6 +22,7 @@ target_link_libraries(antyCopy_lib PUBLIC
         Boost::json
         OpenSSL::SSL
         OpenSSL::Crypto
+        keychain
 )
 
 file(GLOB_RECURSE TEST_SRCS test/*.cpp)

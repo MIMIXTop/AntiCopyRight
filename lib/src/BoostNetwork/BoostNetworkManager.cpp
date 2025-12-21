@@ -6,12 +6,13 @@
 #include <iostream>
 #include <memory>
 #include <string>
+#include <keychain/keychain.h>
 
 namespace {
 #ifdef WIN32
 #define CREDENTIALS_PATH "Util\\Network\\init.json"
 #else
-#define CREDENTIALS_PATH "../Utils/Network/init.json"
+#define CREDENTIALS_PATH "../../Utils/Network/init.json"
 #endif
 
     template<StringConteiner... Conteiners>
@@ -33,15 +34,15 @@ namespace json = boost::json;
 namespace http = beast::http;
 using tcp = asio::ip::tcp;
 
-Server::Server(std::vector<std::string> scopes, int port)
-    : port_(port), ctx(asio::ssl::context::tls_client){
+AuthenticationManager::AuthenticationManager(std::vector<std::string> scopes, int port)
+    : port_(port), ctx(asio::ssl::context::tls_client), timer(ioc) {
     load_config(scopes);
 }
 
-Server::~Server() {
+AuthenticationManager::~AuthenticationManager() {
 }
 
-std::string Server::getAuthUrl() {
+std::string AuthenticationManager::getAuthUrl() {
     std::string authUrl = "https://accounts.google.com/o/oauth2/v2/auth?";
     authUrl += std::format("scope={}&", config_.scope);
     authUrl += std::format("response_type=code&");
@@ -50,15 +51,55 @@ std::string Server::getAuthUrl() {
     return authUrl;
 }
 
-bool Server::EmptyAccessToken() {
-    return  config_.accessToken.empty();
+bool AuthenticationManager::EmptyAccessToken() {
+    return config_.accessToken.empty();
 }
 
-bool Server::EmptyRefreshToken() {
+bool AuthenticationManager::EmptyRefreshToken() {
     return config_.refreshToken.empty();
 }
 
-void Server::load_config(const std::vector<std::string> &scopes) {
+void AuthenticationManager::updateTokens(const boost::system::error_code &error) {
+    if (!error) {
+        asio::co_spawn(ioc, [this]() -> asio::awaitable<void> {
+            try {
+                asio::ssl::stream<tcp::socket> ssl_socket{ioc, ctx};
+                tcp::resolver resolver{ioc};
+
+                auto result = co_await resolver.async_resolve("oauth2.googleapis.com", "443", asio::use_awaitable);
+                co_await asio::async_connect(ssl_socket.next_layer(), result, asio::use_awaitable);
+                co_await ssl_socket.async_handshake(asio::ssl::stream_base::client, asio::use_awaitable);
+
+                keychain::Error error;
+                std::string refreshToken = keychain::getPassword(config_.package, config_.service, config_.user, error);
+                if (refreshToken.empty() || error) {
+                    std::cout << error.message << std::endl;
+                    throw std::runtime_error(error.message);
+                }
+                http::request<http::string_body> req{http::verb::post, "/token", 11};
+                req.set(http::field::host, "oauth2.googleapis.com");
+                req.set(http::field::content_type, "application/x-www-form-urlencoded");
+                req.set(http::field::accept, "application/json");
+                req.set(http::field::user_agent, BOOST_BEAST_VERSION_STRING);
+                req.body() = "client_id=" + config_.clientId + "&" +
+                             "client_secret=" + config_.clientSecret + "&" +
+                             "refresh_token=" + refreshToken + "&" +
+                             "grant_type=refresh_token";
+                req.prepare_payload();
+
+                co_await http::async_write(ssl_socket, req, asio::use_awaitable);
+                beast::flat_buffer buffer;
+                http::response<http::string_body> res;
+                co_await http::async_read(ssl_socket, buffer, res, asio::use_awaitable);
+                handleGetTokens(res.body());
+            } catch (const std::exception &e) {
+                std::cerr << e.what() << std::endl;
+            }
+        }, asio::detached);
+    }
+}
+
+void AuthenticationManager::load_config(const std::vector<std::string> &scopes) {
     std::ifstream file(CREDENTIALS_PATH);
     if (!file.is_open()) {
         throw std::runtime_error("Cannot open config file");
@@ -70,10 +111,9 @@ void Server::load_config(const std::vector<std::string> &scopes) {
     config_.clientId = jsonFile.at("installed").at("client_id").as_string();
     config_.clientSecret = jsonFile.at("installed").at("client_secret").as_string();
     config_.scope = foldString(scopes);
-
 }
 
-std::vector<std::string> Server::getDefaultScope() {
+std::vector<std::string> AuthenticationManager::getDefaultScope() {
     return {
         "https://www.googleapis.com/auth/classroom.coursework.students",
         "https://www.googleapis.com/auth/classroom.coursework.students.readonly",
@@ -83,16 +123,25 @@ std::vector<std::string> Server::getDefaultScope() {
     };
 }
 
-void Server::run_server() {
+void AuthenticationManager::SaveRefreshToken(const std::string &refreshToken) const {
+    keychain::Error error;
+    keychain::setPassword(config_.package, config_.service, config_.user, refreshToken, error);
+    if (error) {
+        std::cerr << error.message << std::endl;
+        throw std::runtime_error(error.message);
+    }
+}
+
+void AuthenticationManager::run_server() {
     asio::signal_set signals{ioc, SIGINT, SIGTERM};
-    signals.async_wait([this] (auto, auto) {
+    signals.async_wait([this](auto, auto) {
         ioc.stop();
     });
     asio::co_spawn(ioc, listen(), asio::detached);
     ioc.run();
 }
 
-asio::awaitable<void> Server::listen() {
+asio::awaitable<void> AuthenticationManager::listen() {
     const auto executor = co_await asio::this_coro::executor;
 
     tcp::acceptor acceptor{executor};
@@ -105,10 +154,11 @@ asio::awaitable<void> Server::listen() {
 
     while (true) {
         auto socket = co_await acceptor.async_accept(asio::use_awaitable);
-        asio::co_spawn(ioc, workWithClient(std::move(socket)),asio::detached);
+        asio::co_spawn(ioc, workWithClient(std::move(socket)), asio::detached);
     }
 }
-asio::awaitable<void> Server::workWithClient(tcp::socket socket) {
+
+asio::awaitable<void> AuthenticationManager::workWithClient(tcp::socket socket) {
     beast::flat_buffer buffer;
     http::request<http::string_body> req;
 
@@ -127,7 +177,7 @@ asio::awaitable<void> Server::workWithClient(tcp::socket socket) {
     }
 }
 
-asio::awaitable<void> Server::getTokens() {
+asio::awaitable<void> AuthenticationManager::getTokens() {
     try {
         asio::ssl::stream<tcp::socket> ssl_socket{ioc, ctx};
         tcp::resolver resolver{ioc};
@@ -153,19 +203,28 @@ asio::awaitable<void> Server::getTokens() {
         http::response<http::string_body> res;
         co_await http::async_read(ssl_socket, buffer, res, asio::use_awaitable);
         handleGetTokens(res.body());
-    } catch (const std::exception& e) {
+    } catch (const std::exception &e) {
         std::cerr << "Server error(get tokent)" << e.what() << std::endl;
     }
 }
 
-void Server::handleGetTokens(std::string_view boby) {
+void AuthenticationManager::handleGetTokens(std::string_view boby) {
     auto resBody = json::parse(boby).as_object();
 
     config_.accessToken = resBody["access_token"].as_string();
-    config_.refreshToken = resBody["refresh_token"].as_string();
+
+    if (resBody.contains("refresh_token")) {
+        SaveRefreshToken(resBody["refresh_token"].as_string().c_str());
+    }
+    timer.expires_after(std::chrono::seconds(resBody["expires_in"].as_int64()));
+    timer.async_wait(std::bind(
+        &AuthenticationManager::updateTokens,
+        this,
+        std::placeholders::_1
+    ));
 }
 
-std::string Server::extractCode(std::string_view code) {
+std::string AuthenticationManager::extractCode(std::string_view code) {
     auto pos = code.find("code=");
     if (pos == std::string::npos) {
         return "";

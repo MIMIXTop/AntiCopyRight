@@ -85,7 +85,13 @@ FetchContent_Declare(
         GIT_TAG ad7344c45a86a4f66cbafc4b081b5f7b876cb0b7
 )
 
-FetchContent_MakeAvailable(googletest quazip libtorch qtkeychain)
+FetchContent_Declare(
+        keychain
+        GIT_REPOSITORY https://github.com/hrantzsch/keychain.git
+        GIT_TAG v1.3.1
+)
+
+FetchContent_MakeAvailable(googletest quazip libtorch qtkeychain keychain)
 
 list(APPEND CMAKE_PREFIX_PATH ${libtorch_SOURCE_DIR})
 find_package(Torch REQUIRED)

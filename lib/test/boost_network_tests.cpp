@@ -6,7 +6,7 @@
 TEST(BoostNetvorkServerTest, GetAuthUrl) {
     std::vector<std::string> scopes = {"hell", "got"};
 
-    Server server(scopes, 8080);
+    AuthenticationManager server(scopes, 8080);
     std::string authUrl = server.getAuthUrl();
     EXPECT_THAT(authUrl, testing::HasSubstr("scope=hell got "));
     EXPECT_THAT(authUrl, testing::HasSubstr("response_type=code"));
@@ -15,7 +15,7 @@ TEST(BoostNetvorkServerTest, GetAuthUrl) {
 }
 
 TEST(BoostNetvorkServerTest, VoidTest) {
-    Server server;
+    AuthenticationManager server;
     std::cout << server.getAuthUrl() << std::endl;
     std::thread th{[&server] {
        server.run_server();

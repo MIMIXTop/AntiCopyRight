@@ -22,21 +22,25 @@ concept StringConteiner = requires(T t) {
     { t.end() } -> std::input_iterator;
 };
 
-class Server {
+class AuthenticationManager {
 public:
-    Server(std::vector<std::string> scopes = getDefaultScope(), int port = 8080);
+    AuthenticationManager(std::vector<std::string> scopes = getDefaultScope(), int port = 8080);
 
     void run_server();
 
-    ~Server();
+    ~AuthenticationManager();
 
     std::string getAuthUrl();
 
     bool EmptyAccessToken();
+
     bool EmptyRefreshToken();
 
 private:
     struct {
+        const std::string package = "com.example.AntyCopyRigtht";
+        const std::string service = "authentication-sevice";
+        const std::string user = "Admin";
         std::string clientId;
         std::string clientSecret;
         std::string accessToken;
@@ -49,17 +53,24 @@ private:
 
     static std::vector<std::string> getDefaultScope();
 
+    void SaveRefreshToken(const std::string &refreshToken) const;
+
     void handleRequest();
 
     asio::awaitable<void> listen();
+
     asio::awaitable<void> workWithClient(tcp::socket socket);
+
     asio::awaitable<void> getTokens();
 
     void handleGetTokens(std::string_view boby);
 
     std::string extractCode(std::string_view code);
 
+    void updateTokens(const boost::system::error_code& error);
+
     asio::io_context ioc;
+    asio::steady_timer timer;
     asio::ssl::context ctx;
     std::string host_ = "127.0.0.1";
     unsigned short port_;
