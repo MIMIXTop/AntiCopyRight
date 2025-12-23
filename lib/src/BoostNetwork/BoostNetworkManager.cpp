@@ -1,12 +1,24 @@
 #include "BoostNetworkManager.hpp"
 #include <boost/asio.hpp>
+#include <boost/asio/awaitable.hpp>
+#include <boost/asio/connect.hpp>
+#include <boost/asio/ssl/stream.hpp>
+#include <boost/asio/ssl/stream_base.hpp>
+#include <boost/asio/use_awaitable.hpp>
 #include <boost/beast.hpp>
+#include <boost/beast/core/flat_buffer.hpp>
+#include <boost/beast/http.hpp>
+#include <boost/beast/http/message_fwd.hpp>
+#include <boost/beast/http/string_body_fwd.hpp>
+#include <boost/beast/http/verb.hpp>
+#include <boost/beast/http/write.hpp>
 #include <boost/json.hpp>
+#include <boost/system/detail/error_code.hpp>
 #include <fstream>
 #include <iostream>
-#include <memory>
 #include <string>
 #include <keychain/keychain.h>
+#include <string_view>
 
 namespace {
 #ifdef WIN32
@@ -37,6 +49,12 @@ using tcp = asio::ip::tcp;
 AuthenticationManager::AuthenticationManager(std::vector<std::string> scopes, int port)
     : port_(port), ctx(asio::ssl::context::tls_client), timer(ioc) {
     load_config(scopes);
+    keychain::Error error;
+    std::string token = keychain::getPassword(config_.package, config_.service, config_.user, error);
+    if (error.message != "") {
+        boost::system::error_code code;
+        updateTokens(code);
+    }
 }
 
 AuthenticationManager::~AuthenticationManager() {
@@ -63,34 +81,10 @@ void AuthenticationManager::updateTokens(const boost::system::error_code &error)
     if (!error) {
         asio::co_spawn(ioc, [this]() -> asio::awaitable<void> {
             try {
-                asio::ssl::stream<tcp::socket> ssl_socket{ioc, ctx};
-                tcp::resolver resolver{ioc};
+                http::request<http::string_body> req;
+                handleRequest(req, RequestStatus::UPDATE_TOKENS);
 
-                auto result = co_await resolver.async_resolve("oauth2.googleapis.com", "443", asio::use_awaitable);
-                co_await asio::async_connect(ssl_socket.next_layer(), result, asio::use_awaitable);
-                co_await ssl_socket.async_handshake(asio::ssl::stream_base::client, asio::use_awaitable);
-
-                keychain::Error error;
-                std::string refreshToken = keychain::getPassword(config_.package, config_.service, config_.user, error);
-                if (refreshToken.empty() || error) {
-                    std::cout << error.message << std::endl;
-                    throw std::runtime_error(error.message);
-                }
-                http::request<http::string_body> req{http::verb::post, "/token", 11};
-                req.set(http::field::host, "oauth2.googleapis.com");
-                req.set(http::field::content_type, "application/x-www-form-urlencoded");
-                req.set(http::field::accept, "application/json");
-                req.set(http::field::user_agent, BOOST_BEAST_VERSION_STRING);
-                req.body() = "client_id=" + config_.clientId + "&" +
-                             "client_secret=" + config_.clientSecret + "&" +
-                             "refresh_token=" + refreshToken + "&" +
-                             "grant_type=refresh_token";
-                req.prepare_payload();
-
-                co_await http::async_write(ssl_socket, req, asio::use_awaitable);
-                beast::flat_buffer buffer;
-                http::response<http::string_body> res;
-                co_await http::async_read(ssl_socket, buffer, res, asio::use_awaitable);
+                auto res = co_await sender(req);
                 handleGetTokens(res.body());
             } catch (const std::exception &e) {
                 std::cerr << e.what() << std::endl;
@@ -164,8 +158,7 @@ asio::awaitable<void> AuthenticationManager::workWithClient(tcp::socket socket) 
 
     co_await http::async_read(socket, buffer, req, asio::use_awaitable);
 
-    std::string_view target = req.target();
-    if (auto authCode = extractCode(target); !authCode.empty()) {
+    if (auto authCode = extractCode(req.target()); !authCode.empty()) {
         config_.code = authCode;
         co_await getTokens();
 
@@ -179,29 +172,11 @@ asio::awaitable<void> AuthenticationManager::workWithClient(tcp::socket socket) 
 
 asio::awaitable<void> AuthenticationManager::getTokens() {
     try {
-        asio::ssl::stream<tcp::socket> ssl_socket{ioc, ctx};
-        tcp::resolver resolver{ioc};
+        http::request<http::string_body> req;
+        handleRequest(req, RequestStatus::GET_TOKEN);
 
-        auto result = co_await resolver.async_resolve("oauth2.googleapis.com", "443", asio::use_awaitable);
-        co_await asio::async_connect(ssl_socket.next_layer(), result, asio::use_awaitable);
-        co_await ssl_socket.async_handshake(asio::ssl::stream_base::client, asio::use_awaitable);
+        http::response<http::string_body> res = co_await sender(req);
 
-        http::request<http::string_body> req{http::verb::post, "/token", 11};
-        req.set(http::field::host, "oauth2.googleapis.com");
-        req.set(http::field::content_type, "application/x-www-form-urlencoded");
-        req.set(http::field::accept, "application/json");
-        req.set(http::field::user_agent, BOOST_BEAST_VERSION_STRING);
-        req.body() = "code=" + config_.code + "&" +
-                     "client_id=" + config_.clientId + "&" +
-                     "client_secret=" + config_.clientSecret + "&" +
-                     "redirect_uri=http://127.0.0.1:8080/code&" +
-                     "grant_type=authorization_code";
-        req.prepare_payload();
-
-        co_await http::async_write(ssl_socket, req, asio::use_awaitable);
-        beast::flat_buffer buffer;
-        http::response<http::string_body> res;
-        co_await http::async_read(ssl_socket, buffer, res, asio::use_awaitable);
         handleGetTokens(res.body());
     } catch (const std::exception &e) {
         std::cerr << "Server error(get tokent)" << e.what() << std::endl;
@@ -236,4 +211,68 @@ std::string AuthenticationManager::extractCode(std::string_view code) {
         return std::string(codePart.substr(0, endPos));
     }
     return std::string(codePart);
+}
+
+void AuthenticationManager::handleRequest(http::request<http::string_body> &req, RequestStatus status) {
+    
+    std::string refreshToken;
+    if (RequestStatus::GET_TOKEN == status) {
+        keychain::Error error;
+        refreshToken = keychain::getPassword(config_.package, config_.service, config_.user, error);
+
+        if (refreshToken.empty() || error) {
+            std::cout << error.message << std::endl;
+            throw std::runtime_error(error.message);
+        }
+    }   
+    
+    switch (status) {
+        case RequestStatus::GET_TOKEN:
+            req.method(http::verb::post);
+            req.target("/token");
+            req.version(11);
+            req.set(http::field::host, "oauth2.googleapis.com");
+            req.set(http::field::content_type, "application/x-www-form-urlencoded");
+            req.set(http::field::accept, "application/json");
+            req.set(http::field::user_agent, BOOST_BEAST_VERSION_STRING);
+            req.body() = "code=" + config_.code + "&" +
+                        "client_id=" + config_.clientId + "&" +
+                        "client_secret=" + config_.clientSecret + "&" +
+                        "redirect_uri=http://127.0.0.1:8080/code&" +
+                        "grant_type=authorization_code";
+            break;
+        case RequestStatus::UPDATE_TOKENS:
+            req.method(http::verb::post);
+            req.target("/token");
+            req.version(11);
+            req.set(http::field::content_type, "application/x-www-form-urlencoded");
+            req.set(http::field::host, "oauth2.googleapis.com");
+            req.set(http::field::user_agent, BOOST_BEAST_VERSION_STRING);
+            req.set(http::field::accept, "application/json");
+            req.body() = "client_id=" + config_.clientId + "&" +
+                        "client_secret=" + config_.clientSecret + "&" +
+                        "refresh_token=" + refreshToken + "&" +
+                        "grant_type=refresh_token";
+            break;
+    }
+    req.prepare_payload();
+}
+
+std::string_view AuthenticationManager::getToken() {
+    return config_.accessToken;
+}
+
+asio::awaitable<http::response<http::string_body>> AuthenticationManager::sender(http::request<http::string_body> &req) {
+    asio::ssl::stream<tcp::socket> ssl_socket{ioc, ctx};
+    tcp::resolver resolver{ioc};
+
+    auto result = co_await resolver.async_resolve("oauth2.googleapis.com", "443", asio::use_awaitable);
+    co_await asio::async_connect(ssl_socket.next_layer(), result, asio::use_awaitable);
+    co_await ssl_socket.async_handshake(asio::ssl::stream_base::client, asio::use_awaitable);
+
+    co_await http::async_write(ssl_socket, req, asio::use_awaitable);
+    beast::flat_buffer buffer;
+    http::response<http::string_body> res;
+    co_await http::async_read(ssl_socket, buffer, res, asio::use_awaitable);
+    co_return res;
 }

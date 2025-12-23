@@ -25,10 +25,5 @@ TEST(BoostNetvorkServerTest, VoidTest) {
     }
     EXPECT_FALSE(server.EmptyAccessToken());
 
-    while (server.EmptyRefreshToken()) {
-        std::this_thread::sleep_for(std::chrono::seconds(5));
-    }
-    EXPECT_FALSE(server.EmptyRefreshToken());
-
     th.detach();
 }

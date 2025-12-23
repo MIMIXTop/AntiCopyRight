@@ -1,5 +1,8 @@
 #pragma once
 
+#include <boost/asio/awaitable.hpp>
+#include <boost/beast/http/message_fwd.hpp>
+#include <boost/beast/http/string_body_fwd.hpp>
 #include <string>
 #include <vector>
 #include <concepts>
@@ -9,8 +12,8 @@
 #include <boost/beast/http/basic_parser.hpp>
 
 namespace asio = boost::asio;
-// namespace beast = boost::beast;
-// namespace http = beast::http;
+namespace beast = boost::beast;
+namespace http = beast::http;
 // namespace json = boost::json;
 using tcp = asio::ip::tcp;
 
@@ -36,6 +39,8 @@ public:
 
     bool EmptyRefreshToken();
 
+    std::string_view getToken();
+
 private:
     struct {
         const std::string package = "com.example.AntyCopyRigtht";
@@ -49,17 +54,24 @@ private:
         std::string scope;
     } config_;
 
+    enum class RequestStatus{
+        GET_TOKEN,
+        UPDATE_TOKENS,
+    };
+
     void load_config(const std::vector<std::string> &scopes);
 
     static std::vector<std::string> getDefaultScope();
 
     void SaveRefreshToken(const std::string &refreshToken) const;
 
-    void handleRequest();
+    void handleRequest(http::request<http::string_body> &req, RequestStatus status);
 
     asio::awaitable<void> listen();
 
     asio::awaitable<void> workWithClient(tcp::socket socket);
+
+    asio::awaitable<http::response<http::string_body>> sender(http::request<http::string_body> &req);
 
     asio::awaitable<void> getTokens();
 
