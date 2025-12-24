@@ -1,17 +1,6 @@
-#include "BoostNetworkManager.hpp"
+#include "AuthenticationManager.hpp"
 #include <boost/asio.hpp>
-#include <boost/asio/awaitable.hpp>
-#include <boost/asio/connect.hpp>
-#include <boost/asio/ssl/stream.hpp>
-#include <boost/asio/ssl/stream_base.hpp>
-#include <boost/asio/use_awaitable.hpp>
 #include <boost/beast.hpp>
-#include <boost/beast/core/flat_buffer.hpp>
-#include <boost/beast/http.hpp>
-#include <boost/beast/http/message_fwd.hpp>
-#include <boost/beast/http/string_body_fwd.hpp>
-#include <boost/beast/http/verb.hpp>
-#include <boost/beast/http/write.hpp>
 #include <boost/json.hpp>
 #include <boost/system/detail/error_code.hpp>
 #include <fstream>
@@ -20,13 +9,9 @@
 #include <keychain/keychain.h>
 #include <string_view>
 
-namespace {
-#ifdef WIN32
-#define CREDENTIALS_PATH "Util\\Network\\init.json"
-#else
-#define CREDENTIALS_PATH "../../Utils/Network/init.json"
-#endif
+#include <Config/ConfigParser.hpp>
 
+namespace {
     template<StringConteiner... Conteiners>
     std::string foldString(const Conteiners &... conteiners) {
         std::ostringstream oss;
@@ -61,7 +46,7 @@ AuthenticationManager::~AuthenticationManager() {
 }
 
 std::string AuthenticationManager::getAuthUrl() {
-    std::string authUrl = "https://accounts.google.com/o/oauth2/v2/auth?";
+    std::string authUrl = config_.authUri + "&";
     authUrl += std::format("scope={}&", config_.scope);
     authUrl += std::format("response_type=code&");
     authUrl += std::format("redirect_uri=http://{}:{}/code&", host_, port_);
@@ -94,16 +79,11 @@ void AuthenticationManager::updateTokens(const boost::system::error_code &error)
 }
 
 void AuthenticationManager::load_config(const std::vector<std::string> &scopes) {
-    std::ifstream file(CREDENTIALS_PATH);
-    if (!file.is_open()) {
-        throw std::runtime_error("Cannot open config file");
-    }
-    std::string configFile((std::istreambuf_iterator(file)),
-                           std::istreambuf_iterator<char>());
-    json::object jsonFile = json::parse(configFile).as_object();
-
-    config_.clientId = jsonFile.at("installed").at("client_id").as_string();
-    config_.clientSecret = jsonFile.at("installed").at("client_secret").as_string();
+    auto parser = Util::ConfigParser();
+    config_.clientId = parser["CLIENT_ID"];
+    config_.clientSecret = parser["CLIENT_SECRET"];
+    config_.authUri = parser["AUTH_URI"];
+    config_.tokenUri = parser["TOKEN_URI"];
     config_.scope = foldString(scopes);
 }
 

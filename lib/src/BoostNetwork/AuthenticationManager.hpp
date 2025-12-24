@@ -1,15 +1,12 @@
 #pragma once
 
-#include <boost/asio/awaitable.hpp>
-#include <boost/beast/http/message_fwd.hpp>
-#include <boost/beast/http/string_body_fwd.hpp>
 #include <string>
 #include <vector>
 #include <concepts>
 
 #include <boost/asio.hpp>
 #include <boost/asio/ssl.hpp>
-#include <boost/beast/http/basic_parser.hpp>
+#include <boost/beast.hpp>
 
 namespace asio = boost::asio;
 namespace beast = boost::beast;
@@ -46,6 +43,8 @@ private:
         const std::string package = "com.example.AntyCopyRigtht";
         const std::string service = "authentication-sevice";
         const std::string user = "Admin";
+        std::string authUri;
+        std::string tokenUri;
         std::string clientId;
         std::string clientSecret;
         std::string accessToken;

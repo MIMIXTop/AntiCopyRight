@@ -1,0 +1,4 @@
+#pragma once
+
+#define CONFIG_FILE_PATH "@CMAKE_SOURCE_DIR@/.env"
+#define PATH_TO_UTILS "@CMAKE_SOURCE_DIR@/Utils"

@@ -1,4 +1,4 @@
-#include <BoostNetwork/BoostNetworkManager.hpp>
+#include <BoostNetwork/AuthenticationManager.hpp>
 
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
@@ -14,7 +14,7 @@ TEST(BoostNetvorkServerTest, GetAuthUrl) {
     EXPECT_THAT(authUrl, testing::HasSubstr("client_id="));
 }
 
-TEST(BoostNetvorkServerTest, VoidTest) {
+/* TEST(BoostNetvorkServerTest, VoidTest) {
     AuthenticationManager server;
     std::cout << server.getAuthUrl() << std::endl;
     std::thread th{[&server] {
@@ -26,4 +26,4 @@ TEST(BoostNetvorkServerTest, VoidTest) {
     EXPECT_FALSE(server.EmptyAccessToken());
 
     th.detach();
-}
+} */

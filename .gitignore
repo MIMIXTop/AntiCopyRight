@@ -14,4 +14,5 @@ build
 .vscode
 .cache
 .idea
+.env
 .qtcreator

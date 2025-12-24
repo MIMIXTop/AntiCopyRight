@@ -5,16 +5,18 @@
 #include <vector>
 #include <string_view>
 #include <QDebug>
+#include "config.hpp"
 
 namespace {
-#ifdef WIN32
-    #define PATH_MODEL "Utils\\Model\\doc2vec_model.pt"
-    #define PATH_WORD2IDX "Utils\\Model\\word2idx.txt"
+#ifdef _WIN32
+#define PATH_MODEL      PATH_TO_UTILS "\\doc2vec_model.pt"
+#define PATH_WORD2IDX   PATH_TO_UTILS "\\word2idx.txt"
 #else
-    #define PATH_MODEL "Utils/Model/doc2vec_model.pt"
-    #define PATH_WORD2IDX "Utils/Model/word2idx.txt"
+#define PATH_MODEL      PATH_TO_UTILS "/doc2vec_model.pt"
+#define PATH_WORD2IDX   PATH_TO_UTILS "/word2idx.txt"
 #endif
 }
+
 
 torch::Tensor Model::Doc2VecModel::getDocVector(const std::string &document) const {
     if (model == nullptr) {
@@ -24,7 +26,7 @@ torch::Tensor Model::Doc2VecModel::getDocVector(const std::string &document) con
     const std::vector tokens = Lemmatizer::getLemmas(document);
     std::vector<int32_t> indices;
 
-    for (auto&& token : tokens) {
+    for (auto &&token: tokens) {
         if (word2idx.contains(token)) {
             indices.emplace_back(word2idx.at(token));
         }
@@ -46,11 +48,11 @@ torch::Tensor Model::Doc2VecModel::getDocVector(const std::string &document) con
 
 void Model::Doc2VecModel::loadModel() {
     try {
-        model = std::make_unique<torch::jit::Module>( torch::jit::load(PATH_MODEL));
+        model = std::make_unique<torch::jit::Module>(torch::jit::load(PATH_MODEL));
         model->to(device);
         model->eval();
         qInfo() << "Model loaded";
-    } catch (const c10::Error& e) {
+    } catch (const c10::Error &e) {
         qInfo() << "Falid load model" << e.what();
     }
 
@@ -65,13 +67,13 @@ double Model::Doc2VecModel::Similarity(const torch::Tensor &doc1, const torch::T
     }
 
     return torch::nn::functional::cosine_similarity(
-               doc1.unsqueeze(0), doc2.unsqueeze(0),
-               torch::nn::functional::CosineSimilarityFuncOptions().dim(1)
-               ).item<double>();
+        doc1.unsqueeze(0), doc2.unsqueeze(0),
+        torch::nn::functional::CosineSimilarityFuncOptions().dim(1)
+    ).item<double>();
 }
 
 torch::Device Model::Doc2VecModel::setDevice() {
-    return  torch::Device(torch::cuda::is_available() ? torch::kCUDA : torch::kCPU);
+    return torch::Device(torch::cuda::is_available() ? torch::kCUDA : torch::kCPU);
 }
 
 std::unordered_map<std::string, int32_t> Model::Doc2VecModel::setWord2Idx() {

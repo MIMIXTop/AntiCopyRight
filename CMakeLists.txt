@@ -105,7 +105,11 @@ find_package(Qt6 REQUIRED COMPONENTS
 )
 find_package(Qt6 REQUIRED COMPONENTS Core)
 
+configure_file(config.hpp.in ${CMAKE_BINARY_DIR}/config.hpp @ONLY)
+include_directories(${CMAKE_BINARY_DIR})
+
 add_subdirectory(lib)
+target_include_directories(antyCopy_lib PUBLIC ${CMAKE_BINARY_DIR})
 
 file(GLOB_RECURSE SRCS src/*.cpp)
 
