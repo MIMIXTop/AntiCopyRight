@@ -12,8 +12,8 @@ namespace {
 #define PATH_MODEL      PATH_TO_UTILS "\\doc2vec_model.pt"
 #define PATH_WORD2IDX   PATH_TO_UTILS "\\word2idx.txt"
 #else
-#define PATH_MODEL      PATH_TO_UTILS "/doc2vec_model.pt"
-#define PATH_WORD2IDX   PATH_TO_UTILS "/word2idx.txt"
+#define PATH_MODEL      PATH_TO_UTILS "Model/doc2vec_model.pt"
+#define PATH_WORD2IDX   PATH_TO_UTILS "StopWords/word2idx.txt"
 #endif
 }
 

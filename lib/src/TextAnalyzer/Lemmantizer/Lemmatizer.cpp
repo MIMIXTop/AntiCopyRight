@@ -1,5 +1,6 @@
 #include "Lemmatizer.hpp"
 #include <Util/util.hpp>
+#include "config.hpp"
 
 #include <fstream>
 #include <algorithm>
@@ -11,9 +12,9 @@
 
 namespace {
     #ifdef WIN32
-        #define PATH_STOP_WORDS ..\\"Utils\\StopWords\\russianStopWords.txt"
+        #define PATH_STOP_WORDS PATH_TO_UTILS "\\StopWords\\russianStopWords.txt"
     #else
-        #define PATH_STOP_WORDS "../Utils/StopWords/stopWords.txt"
+        #define PATH_STOP_WORDS PATH_TO_UTILS "StopWords/stopWords.txt"
     #endif
 
     std::unordered_set<std::string> getStopWords(const std::string &path = PATH_STOP_WORDS) {

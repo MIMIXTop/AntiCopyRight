@@ -9,7 +9,6 @@
 #include <QOAuthHttpServerReplyHandler>
 #include <QString>
 #include <QJsonArray>
-#include <QJsonDocument>
 #include <QHash>
 #include <QTimer>
 #include <QThread>

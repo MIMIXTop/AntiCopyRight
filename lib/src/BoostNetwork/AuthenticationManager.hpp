@@ -8,12 +8,6 @@
 #include <boost/asio/ssl.hpp>
 #include <boost/beast.hpp>
 
-namespace asio = boost::asio;
-namespace beast = boost::beast;
-namespace http = beast::http;
-// namespace json = boost::json;
-using tcp = asio::ip::tcp;
-
 template <class T>
 concept StringConteiner = requires(T t) {
     typename T::value_type;
@@ -22,67 +16,69 @@ concept StringConteiner = requires(T t) {
     { t.end() } -> std::input_iterator;
 };
 
-class AuthenticationManager {
-public:
-    AuthenticationManager(std::vector<std::string> scopes = getDefaultScope(), int port = 8080);
+namespace Network {
+    class AuthenticationManager {
+    public:
+        AuthenticationManager(std::vector<std::string> scopes = getDefaultScope(), int port = 8080);
 
-    void run_server();
+        void run_server();
 
-    ~AuthenticationManager();
+        ~AuthenticationManager();
 
-    std::string getAuthUrl();
+        std::string getAuthUrl();
 
-    bool EmptyAccessToken();
+        bool EmptyAccessToken();
 
-    bool EmptyRefreshToken();
+        bool EmptyRefreshToken();
 
-    std::string_view getToken();
+        std::string_view getToken();
 
-private:
-    struct {
-        const std::string package = "com.example.AntyCopyRigtht";
-        const std::string service = "authentication-sevice";
-        const std::string user = "Admin";
-        std::string authUri;
-        std::string tokenUri;
-        std::string clientId;
-        std::string clientSecret;
-        std::string accessToken;
-        std::string refreshToken;
-        std::string code;
-        std::string scope;
-    } config_;
+    private:
+        struct {
+            const std::string package = "com.example.AntyCopyRigtht";
+            const std::string service = "authentication-sevice";
+            const std::string user = "Admin";
+            std::string authUri;
+            std::string tokenUri;
+            std::string clientId;
+            std::string clientSecret;
+            std::string accessToken;
+            std::string refreshToken;
+            std::string code;
+            std::string scope;
+        } config_;
 
-    enum class RequestStatus{
-        GET_TOKEN,
-        UPDATE_TOKENS,
+        enum class RequestStatus{
+            GET_TOKEN,
+            UPDATE_TOKENS,
+        };
+
+        void load_config(const std::vector<std::string> &scopes);
+
+        static std::vector<std::string> getDefaultScope();
+
+        void SaveRefreshToken(const std::string &refreshToken) const;
+
+        void handleRequest(boost::beast::http::request<boost::beast::http::string_body> &req, RequestStatus status);
+
+        boost::asio::awaitable<void> listen();
+
+        boost::asio::awaitable<void> workWithClient(boost::asio::ip::tcp::socket socket);
+
+        boost::asio::awaitable<boost::beast::http::response<boost::beast::http::string_body>> sender(boost::beast::http::request<boost::beast::http::string_body> &req);
+
+        boost::asio::awaitable<void> getTokens();
+
+        void handleGetTokens(std::string_view boby);
+
+        std::string extractCode(std::string_view code);
+
+        void updateTokens(const boost::system::error_code& error);
+
+        boost::asio::io_context ioc;
+        boost::asio::steady_timer timer;
+        boost::asio::ssl::context ctx;
+        std::string host_ = "127.0.0.1";
+        unsigned short port_;
     };
-
-    void load_config(const std::vector<std::string> &scopes);
-
-    static std::vector<std::string> getDefaultScope();
-
-    void SaveRefreshToken(const std::string &refreshToken) const;
-
-    void handleRequest(http::request<http::string_body> &req, RequestStatus status);
-
-    asio::awaitable<void> listen();
-
-    asio::awaitable<void> workWithClient(tcp::socket socket);
-
-    asio::awaitable<http::response<http::string_body>> sender(http::request<http::string_body> &req);
-
-    asio::awaitable<void> getTokens();
-
-    void handleGetTokens(std::string_view boby);
-
-    std::string extractCode(std::string_view code);
-
-    void updateTokens(const boost::system::error_code& error);
-
-    asio::io_context ioc;
-    asio::steady_timer timer;
-    asio::ssl::context ctx;
-    std::string host_ = "127.0.0.1";
-    unsigned short port_;
-};
+}

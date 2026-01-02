@@ -3,6 +3,9 @@
 #include <variant>
 #include <QJsonArray>
 #include <QByteArray>
+#include <boost/beast/http/vector_body.hpp>
+
+#include <boost/json/array.hpp>
 
 namespace ReplyTypes {
     namespace Type {

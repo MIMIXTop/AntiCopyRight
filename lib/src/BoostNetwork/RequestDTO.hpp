@@ -1,8 +1,23 @@
-//
-// Created by mimixtop on 01.01.2026.
-//
+#pragma once
 
-#ifndef ANTICOPYRIGHT_REQUESTDTO_HPP
-#define ANTICOPYRIGHT_REQUESTDTO_HPP
+#include <string>
+#include <variant>
 
-#endif //ANTICOPYRIGHT_REQUESTDTO_HPP
+struct DTOCourseList {
+
+};
+
+struct DTOCourseWorksList {
+    std::string courseId;
+};
+
+struct DTOStudentsList {
+    std::string courseId;
+};
+
+struct DTOStudentWorksDownload {
+
+    std::string fileId;
+};
+
+using DTOCreateRequest = std::variant<DTOCourseList, DTOCourseWorksList, DTOStudentsList, DTOStudentWorksDownload>;
