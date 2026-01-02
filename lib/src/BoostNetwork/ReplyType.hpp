@@ -1,0 +1,8 @@
+//
+// Created by mimixtop on 01.01.2026.
+//
+
+#ifndef ANTICOPYRIGHT_REPLYTYPE_HPP
+#define ANTICOPYRIGHT_REPLYTYPE_HPP
+
+#endif //ANTICOPYRIGHT_REPLYTYPE_HPP
