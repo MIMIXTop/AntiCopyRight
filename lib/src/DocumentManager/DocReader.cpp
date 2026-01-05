@@ -1,11 +1,43 @@
 
 #include "DocReader.hpp"
+#include "bit7z/bit7zlibrary.hpp"
+#include "bit7z/bitformat.hpp"
+#include "bit7z/bittypes.hpp"
 
 #include <QString>
 #include <QBuffer>
+#include <QFile>
+#include <map>
 #include <quazip/quazip.h>
 #include <quazip/quazipfile.h>
 #include <QXmlStreamReader>
+#include <string>
+
+#include <pugixml.hpp>
+#include <bit7z/bitmemextractor.hpp>
+
+namespace  {
+    struct DocWalker : public pugi::xml_tree_walker {
+        std::string result;
+        bool skipNextText = false;
+
+       virtual bool for_each(pugi::xml_node& node) override {
+            std::string name = node.name();
+            if (name == "w:rFonts" && std::string(node.attribute("w:cs").value()) == "Courier New") {
+                skipNextText = true;
+            }
+            if (name == "w:t") {
+                if (skipNextText) {
+                    skipNextText = false;
+                    return true;
+                }
+                result += node.text().as_string();
+            }
+
+            return true;
+        }
+    };
+}
 
 std::optional<QString> DocReader::readFile(QByteArray &document) {
     QString result;
@@ -64,3 +96,66 @@ std::optional<QString> DocReader::readFile(QByteArray &document) {
 
     return result;
 }
+
+std::optional<std::string> DocReader::readFile(std::vector<unsigned char> &&document) {
+    bit7z::Bit7zLibrary lib{get7zLibraryPath()};
+    std::vector<bit7z::byte_t> outData;
+    bit7z::BitMemExtractor extractor{lib, bit7z::BitFormat::Zip};
+    std::map<std::string, std::vector<bit7z::byte_t>> files;
+    extractor.extract(document, files);
+
+    if (files.contains("word/document.xml")) {
+        const auto& data = files["word/document.xml"];
+        return xmlReader(std::string(data.begin(), data.end()));
+        //return std::string(reinterpret_cast<const char*>(data.data()), data.size());
+    }
+
+    return std::nullopt;
+}  
+
+std::optional<std::string> DocReader::xmlReader(std::string &&xml) {
+    pugi::xml_document doc;
+    doc.load_string(xml.c_str());
+    DocWalker walker;
+    doc.traverse(walker);
+    return walker.result;
+}
+
+std::string DocReader::get7zLibraryPath() {
+    if (const char* envPath = std::getenv("ANTYCOPY_7Z_PATH")) {
+        return std::string(envPath);
+    }
+
+#ifdef SEVENZIP_LIB_PATH
+    if (QFile::exists(SEVENZIP_LIB_PATH)) {
+        return SEVENZIP_LIB_PATH;
+    }
+#endif
+
+    const std::vector<std::string> paths = {
+#ifdef WIN32
+        "C:/Program Files/7-Zip/7z.dll",
+        "C:/Program Files (x86)/7-Zip/7z.dll",
+        "7z.dll"
+#else
+        "/usr/lib/7zip/7z.so",
+        "/usr/lib/p7zip/7z.so",
+        "/usr/local/lib/7zip/7z.so",
+        "lib7z.so",
+        "7z.so"
+#endif
+    };
+
+    for (const auto& path : paths) {
+        if (std::filesystem::exists(path)) {
+            return path;
+        }
+    }
+
+#ifdef WIN32
+    return "7z.dll";
+#else
+    return "7z.so";
+#endif
+}
+

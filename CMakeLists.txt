@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.31)
+cmake_minimum_required(VERSION 3.20)
 project(AntiCopyRight LANGUAGES CXX)
 
 include(FetchContent)
@@ -91,7 +91,19 @@ FetchContent_Declare(
         GIT_TAG v1.3.1
 )
 
-FetchContent_MakeAvailable(googletest quazip libtorch qtkeychain keychain)
+FetchContent_Declare(
+        bit7z
+        GIT_REPOSITORY https://github.com/rikyoz/bit7z.git
+        GIT_TAG v4.0.10
+)
+
+FetchContent_Declare(
+        pugixml
+        GIT_REPOSITORY https://github.com/zeux/pugixml.git
+        GIT_TAG v1.15
+)       
+
+FetchContent_MakeAvailable(googletest quazip libtorch qtkeychain keychain bit7z pugixml)
 
 list(APPEND CMAKE_PREFIX_PATH ${libtorch_SOURCE_DIR})
 find_package(Torch REQUIRED)
