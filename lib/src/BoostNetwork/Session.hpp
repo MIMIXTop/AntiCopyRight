@@ -1,5 +1,6 @@
 #pragma once
 
+#include <boost/beast/http/empty_body.hpp>
 #include <string>
 #include <boost/asio.hpp>
 #include <boost/asio/ssl.hpp>
@@ -13,13 +14,14 @@ namespace Network {
     public:
         Session(boost::asio::io_context &ioc);
 
-        boost::asio::awaitable<void> connectToSender(const std::string &host);
+        virtual ~Session() = default;
 
-        boost::asio::awaitable<void> stopConnectToSender();
+        virtual boost::asio::awaitable<void> connectToSender(const std::string &host);
 
-        template<typename Body>
-        boost::asio::awaitable<boost::beast::http::response<boost::beast::http::dynamic_body>> sendRequest(
-            boost::beast::http::request<Body> req);
+        virtual boost::asio::awaitable<void> stopConnectToSender();
+
+        virtual boost::asio::awaitable<boost::beast::http::response<boost::beast::http::dynamic_body>> sendRequest(
+            boost::beast::http::request<boost::beast::http::empty_body> req);
 
 
     private:

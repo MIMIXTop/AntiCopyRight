@@ -1,6 +1,9 @@
 #pragma once
 
+#include <boost/json/object.hpp>
+#include <string>
 #include <variant>
+#include <vector>
 
 #include <boost/beast/http/vector_body.hpp>
 
@@ -15,7 +18,8 @@ namespace ReplyTypes {
             boost::json::array courseWorks;
         };
         struct DownloadStudentWork {
-            boost::beast::http::vector_body<uint8_t> courseWork;
+            std::vector<uint8_t> courseWork;
+            std::string fileName;
         };
         struct StudentWorks {
             boost::json::array studentWorks;
@@ -23,9 +27,12 @@ namespace ReplyTypes {
         struct StudentList {
             boost::json::array studentsList;
         };
+        struct Error {
+            boost::json::object error;
+        };
     }
-
-    using BoostReply = std::variant<BoostTypes::Course ,BoostTypes::CourseWorks ,BoostTypes::StudentList ,BoostTypes::StudentWorks ,BoostTypes::DownloadStudentWork>;
+    
+    using BoostReply = std::variant<BoostTypes::Course ,BoostTypes::CourseWorks ,BoostTypes::StudentList ,BoostTypes::StudentWorks ,BoostTypes::DownloadStudentWork, BoostTypes::Error>;
 }
 
 

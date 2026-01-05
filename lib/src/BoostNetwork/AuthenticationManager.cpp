@@ -55,7 +55,7 @@ namespace Network {
         return authUrl;
     }
 
-    bool AuthenticationManager::EmptyAccessToken() {
+    bool AuthenticationManager::EmptyAccessToken() const {
         return config_.accessToken.empty();
     }
 
@@ -239,7 +239,7 @@ namespace Network {
         req.prepare_payload();
     }
 
-    std::string_view AuthenticationManager::getToken() {
+    std::string_view AuthenticationManager::getToken() const {
         return config_.accessToken;
     }
 

@@ -1,8 +1,26 @@
 #include "ClassroomManager.hpp"
 
+#include <algorithm>
+#include <boost/asio/awaitable.hpp>
+#include <boost/asio/buffer.hpp>
+#include <boost/asio/buffers_iterator.hpp>
+#include <boost/asio/co_spawn.hpp>
+#include <boost/asio/detached.hpp>
+#include <boost/asio/post.hpp>
+#include <QObject>
+#include <boost/asio/post.hpp>
+#include <boost/asio/use_awaitable.hpp>
+#include <boost/beast/core/buffers_to_string.hpp>
+#include <boost/beast/http/dynamic_body_fwd.hpp>
+#include <boost/beast/http/message_fwd.hpp>
+#include <boost/json/parse.hpp>
+#include <thread>
+#include <utility>
+#include <variant>
+#include <vector>
 
-#include <boost/asio.hpp>
-
+#include "BoostNetwork/ReplyType.hpp"
+#include "BoostNetwork/RequestDTO.hpp"
 #include "Util/util.hpp"
 
 namespace {
@@ -12,36 +30,88 @@ namespace {
     namespace asio = boost::asio;
     namespace beast = boost::beast;
     namespace http = beast::http;
+    namespace json = boost::json;
 }
 
 namespace Network {
     ClassroomManager::ClassroomManager() {
+        networkThread = std::jthread([this]{
+            ioContext_.run();
+        });
+
         classroomSession_ = std::make_unique<Session>(ioContext_);
-        classroomSession_->connectToSender(GOOGLE_CLASSROOM_HOST);
+        asio::co_spawn(ioContext_, classroomSession_->connectToSender(GOOGLE_CLASSROOM_HOST), asio::detached);
+
 
         driveSession_ = std::make_unique<Session>(ioContext_);
-        driveSession_->connectToSender(GOOGLE_HOST);
+        asio::co_spawn(ioContext_, driveSession_->connectToSender(GOOGLE_HOST), asio::detached);
 
         authenticationManager_ = std::make_unique<AuthenticationManager>();
     }
 
-    ReplyTypes::BoostReply ClassroomManager::getCourses() {
+    ClassroomManager::ClassroomManager(std::unique_ptr<Session> ClassSess, std::unique_ptr<Session> DriveSess, std::unique_ptr<AuthenticationManager> authMan) : 
+    classroomSession_(std::move(ClassSess)), driveSession_(std::move(DriveSess)), authenticationManager_(std::move(authMan)) {
+           networkThread = std::jthread([this]{
+            auto work = asio::make_work_guard(ioContext_);
+            ioContext_.run();
+        });
+ 
     }
 
-    ReplyTypes::BoostReply ClassroomManager::getListCoursesWorks(const std::string &courseId) {
+
+    ClassroomManager::~ClassroomManager() {
+        ioContext_.stop();
     }
 
-    ReplyTypes::BoostReply ClassroomManager::getStudentsList(const std::string &courseId) {
+    void ClassroomManager::getCourses(HandlerFunction func) {
+        asio::co_spawn(ioContext_, [this, handler = std::move(func)] -> asio::awaitable<void>{
+            http::response<http::dynamic_body> res = co_await classroomSession_->sendRequest(requestHandler(DTOCourseList{}));
+            auto body = beast::buffers_to_string(res.body().cdata());
+            auto jsonBody = json::parse(body).as_object();
+            ReplyTypes::BoostTypes::Course obj;
+            obj.course = jsonBody.at("courses").as_array();
+            handler(obj);
+        }, asio::detached);
     }
 
-    ReplyTypes::BoostReply ClassroomManager::downloadStudentWork(const std::string &fileName,
-                                                                 const std::string &fileUrl) {
+    void ClassroomManager::getListCoursesWorks(HandlerFunction func, const std::string &courseId) {
+        asio::co_spawn(ioContext_, [this, handler = std::move(func), courseId] -> asio::awaitable<void>{
+            http::response<http::dynamic_body> res = co_await classroomSession_->sendRequest(requestHandler(DTOCourseWorksList{courseId}));
+            auto body = beast::buffers_to_string(res.body().cdata());
+            auto jsonBody = json::parse(body).as_object();
+            ReplyTypes::BoostTypes::CourseWorks obj;
+            obj.courseWorks = jsonBody.at("courseWork").as_array();
+            handler(obj);
+        }, asio::detached);
     }
 
-    http::request<http::empty_body> ClassroomManager::requestHandler(DTOCreateRequest dto) {
+    void ClassroomManager::getStudentsList(HandlerFunction func, const std::string &courseId) {
+        asio::co_spawn(ioContext_, [this, handler = std::move(func), courseId] -> asio::awaitable<void>{
+            http::response<http::dynamic_body> res = co_await classroomSession_->sendRequest(requestHandler(DTOStudentsList{courseId}));
+            auto body = beast::buffers_to_string(res.body().cdata());
+            auto jsonBody = json::parse(body).as_object();
+            ReplyTypes::BoostTypes::CourseWorks obj;
+            obj.courseWorks = jsonBody.at("students").as_array();
+            handler(obj);
+        }, asio::detached);
+    }
+
+    void ClassroomManager::downloadStudentWork(HandlerFunction func, const std::string &fileName, const std::string &fileId) {
+        asio::co_spawn(ioContext_, [this, handler = std::move(func), fileName, fileId] -> asio::awaitable<void> {
+            http::response<http::dynamic_body> res = co_await driveSession_->sendRequest(requestHandler(DTOStudentWorksDownload{fileId}));
+            auto bodyBegin = asio::buffers_begin(res.body().cdata());
+            auto bodyEnd = asio::buffers_end(res.body().cdata());
+            ReplyTypes::BoostTypes::DownloadStudentWork obj;
+            obj.courseWork = std::vector<uint8_t>{bodyBegin, bodyEnd};
+            obj.fileName = fileName;
+            handler(obj);
+        }, asio::detached);
+    }
+    
+    http::request<http::empty_body> ClassroomManager::requestHandler(DTOCreateRequest&& dto) {
         if (authenticationManager_->EmptyAccessToken()) {
             http::request<http::empty_body> invalid;
-            invalid.method(http::verb::unknown); // или просто бросить исключение
+            invalid.method(http::verb::unknown);
             return invalid;
         }
 
@@ -72,6 +142,7 @@ namespace Network {
                            request.set(http::field::host, GOOGLE_HOST);
                        }
                    }, dto);
+        request.prepare_payload();           
         return request;
     }
 } // Network

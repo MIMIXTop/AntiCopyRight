@@ -7,6 +7,7 @@
 #include <boost/asio.hpp>
 #include <boost/asio/ssl.hpp>
 #include <boost/beast.hpp>
+#include <boost/beast/http/empty_body.hpp>
 
 #include "Util/util.hpp"
 
@@ -32,8 +33,8 @@ namespace Network {
         stream_.next_layer().close();
     }
 
-    template<typename Body>
-    asio::awaitable<http::response<http::dynamic_body>> Session::sendRequest(http::request<Body> req) {
+
+    asio::awaitable<http::response<http::dynamic_body>> Session::sendRequest(http::request<http::empty_body> req) {
         co_await http::async_write(stream_, std::move(req), asio::use_awaitable);
         beast::flat_buffer buffer;
         http::response<http::dynamic_body> res;

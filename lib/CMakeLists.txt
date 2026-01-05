@@ -36,6 +36,8 @@ target_compile_definitions(antyCopy_tests PRIVATE
 target_link_libraries(antyCopy_tests
         gtest
         gtest_main
+        gmock
+
         Qt6::Test
         antyCopy_lib
 )

@@ -23,15 +23,15 @@ namespace Network {
 
         void run_server();
 
-        ~AuthenticationManager();
+        virtual ~AuthenticationManager();
 
         std::string getAuthUrl();
 
-        bool EmptyAccessToken();
+        virtual bool EmptyAccessToken() const;
 
         bool EmptyRefreshToken();
 
-        std::string_view getToken();
+        virtual std::string_view getToken() const;
 
     private:
         struct {

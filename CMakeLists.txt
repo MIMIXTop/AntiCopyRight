@@ -103,7 +103,6 @@ find_package(Qt6 REQUIRED COMPONENTS
         Test
         Quick
 )
-find_package(Qt6 REQUIRED COMPONENTS Core)
 
 configure_file(config.hpp.in ${CMAKE_BINARY_DIR}/config.hpp @ONLY)
 include_directories(${CMAKE_BINARY_DIR})
