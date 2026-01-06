@@ -13,6 +13,7 @@
 #include <boost/beast/core/buffers_to_string.hpp>
 #include <boost/beast/http/dynamic_body_fwd.hpp>
 #include <boost/beast/http/message_fwd.hpp>
+#include <boost/beast/http/verb.hpp>
 #include <boost/json/parse.hpp>
 #include <thread>
 #include <utility>
@@ -58,7 +59,6 @@ namespace Network {
  
     }
 
-
     ClassroomManager::~ClassroomManager() {
         ioContext_.stop();
     }
@@ -68,6 +68,14 @@ namespace Network {
             http::response<http::dynamic_body> res = co_await classroomSession_->sendRequest(requestHandler(DTOCourseList{}));
             auto body = beast::buffers_to_string(res.body().cdata());
             auto jsonBody = json::parse(body).as_object();
+
+            if (res.result() != http::status::ok) {
+                ReplyTypes::BoostTypes::Error obj;
+                obj.error = json::object();
+                obj.error";
+                handler(obj);
+                co_return;
+            }
             ReplyTypes::BoostTypes::Course obj;
             obj.course = jsonBody.at("courses").as_array();
             handler(obj);

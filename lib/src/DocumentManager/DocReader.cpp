@@ -1,20 +1,13 @@
 
 #include "DocReader.hpp"
-#include "bit7z/bit7zlibrary.hpp"
-#include "bit7z/bitformat.hpp"
-#include "bit7z/bittypes.hpp"
 
-#include <QString>
-#include <QBuffer>
-#include <QFile>
-#include <map>
-#include <quazip/quazip.h>
-#include <quazip/quazipfile.h>
-#include <QXmlStreamReader>
 #include <string>
-
+#include <span>
+#include <mz.h>
+#include <mz_strm.h>
+#include <mz_strm_mem.h>
+#include <mz_zip.h>
 #include <pugixml.hpp>
-#include <bit7z/bitmemextractor.hpp>
 
 namespace  {
     struct DocWalker : public pugi::xml_tree_walker {
@@ -39,80 +32,6 @@ namespace  {
     };
 }
 
-std::optional<QString> DocReader::readFile(QByteArray &document) {
-    QString result;
-
-    QBuffer buffer(&document);
-    buffer.open(QIODevice::ReadOnly);
-
-    QuaZip quaZip(&buffer);
-    if (!quaZip.open(QuaZip::mdUnzip)) {
-        qInfo() << "Could not open quazip file" << document;
-        return std::nullopt;
-    }
-    if (!quaZip.setCurrentFile("word/document.xml")) {
-        qInfo() << "Not find document.xml file in " << document;
-        quaZip.close();
-        return std::nullopt;
-    }
-
-    QuaZipFile quaZipFile(&quaZip);
-
-    if (!quaZipFile.open(QIODevice::ReadOnly)) {
-        qInfo() << "Could not open document.xml in file" << document;
-        quaZipFile.close();
-        return std::nullopt;
-    }
-
-    QXmlStreamReader reader(&quaZipFile);
-    bool needReadText = true;
-
-    while (!reader.atEnd()) {
-        reader.readNext();
-
-        if (reader.name() == "rFonts" && reader.attributes().value("w:cs").toString() == "Courier New") {
-            needReadText = false;
-        }
-
-        if (reader.name() == "t") {
-            reader.readNext();
-            if (!needReadText) {
-                needReadText = true;
-                continue;
-            }
-
-            if (reader.isCharacters() && !reader.isWhitespace()) {
-                result.append(reader.text().toString());
-            }
-        }
-    }
-
-    if (reader.hasError()) {
-        qInfo() << "Failed XML:" << reader.errorString();
-    }
-
-    reader.clear();
-    quaZipFile.close();
-
-    return result;
-}
-
-std::optional<std::string> DocReader::readFile(std::vector<unsigned char> &&document) {
-    bit7z::Bit7zLibrary lib{get7zLibraryPath()};
-    std::vector<bit7z::byte_t> outData;
-    bit7z::BitMemExtractor extractor{lib, bit7z::BitFormat::Zip};
-    std::map<std::string, std::vector<bit7z::byte_t>> files;
-    extractor.extract(document, files);
-
-    if (files.contains("word/document.xml")) {
-        const auto& data = files["word/document.xml"];
-        return xmlReader(std::string(data.begin(), data.end()));
-        //return std::string(reinterpret_cast<const char*>(data.data()), data.size());
-    }
-
-    return std::nullopt;
-}  
-
 std::optional<std::string> DocReader::xmlReader(std::string &&xml) {
     pugi::xml_document doc;
     doc.load_string(xml.c_str());
@@ -121,41 +40,63 @@ std::optional<std::string> DocReader::xmlReader(std::string &&xml) {
     return walker.result;
 }
 
-std::string DocReader::get7zLibraryPath() {
-    if (const char* envPath = std::getenv("ANTYCOPY_7Z_PATH")) {
-        return std::string(envPath);
+std::optional<std::string> DocReader::zipReader(std::span<unsigned char> &&zip) {
+    void *mem_stream = NULL;
+    void *zip_handle = NULL;
+
+    mem_stream = mz_stream_mem_create();
+    mz_stream_mem_set_buffer(mem_stream, zip.data(), zip.size());
+    
+    if (mz_stream_open(mem_stream, NULL, MZ_OPEN_MODE_READ) != MZ_OK) {
+        mz_stream_mem_delete(&mem_stream);
+        throw std::runtime_error("Failed to set memory buffer");
     }
 
-#ifdef SEVENZIP_LIB_PATH
-    if (QFile::exists(SEVENZIP_LIB_PATH)) {
-        return SEVENZIP_LIB_PATH;
+    zip_handle = mz_zip_create();
+    if (!zip_handle) {
+        mz_stream_close(mem_stream);
+        mz_stream_mem_delete(&mem_stream);
+        throw std::runtime_error("Failed to create ZIP handle");
     }
-#endif
 
-    const std::vector<std::string> paths = {
-#ifdef WIN32
-        "C:/Program Files/7-Zip/7z.dll",
-        "C:/Program Files (x86)/7-Zip/7z.dll",
-        "7z.dll"
-#else
-        "/usr/lib/7zip/7z.so",
-        "/usr/lib/p7zip/7z.so",
-        "/usr/local/lib/7zip/7z.so",
-        "lib7z.so",
-        "7z.so"
-#endif
-    };
+    if (mz_zip_open(zip_handle, mem_stream, MZ_OPEN_MODE_READ) != MZ_OK) {
+        mz_zip_delete(&zip_handle);
+        mz_stream_close(mem_stream);
+        mz_stream_mem_delete(&mem_stream);
+        throw std::runtime_error("Failed to open zip");
+    }
+    if (mz_zip_locate_entry(zip_handle, "word/document.xml", 0) != MZ_OK) {
+        mz_zip_close(zip_handle);
+        mz_zip_delete(&zip_handle);
+        mz_stream_close(mem_stream);
+        mz_stream_mem_delete(&mem_stream);
+        return std::nullopt;
+    }
 
-    for (const auto& path : paths) {
-        if (std::filesystem::exists(path)) {
-            return path;
+    if (mz_zip_entry_read_open(zip_handle, 0, nullptr) != MZ_OK) {
+        mz_zip_close(zip_handle);
+        mz_zip_delete(&zip_handle);
+        mz_stream_close(mem_stream);
+        mz_stream_mem_delete(&mem_stream);
+        throw std::runtime_error("Failed to open entry for reading");
+    }
+    std::vector<uint8_t> output;
+    output.resize(65536);
+    int64_t total = 0;
+    int32_t read;
+    while ((read = mz_zip_entry_read(zip_handle, output.data() + total, output.size() - total)) > 0) {
+        total += read;
+        if (total >= output.size()) {
+            output.resize(output.size() * 2);
         }
-    }
+    }    
+    output.resize(total);
 
-#ifdef WIN32
-    return "7z.dll";
-#else
-    return "7z.so";
-#endif
+    mz_zip_entry_close(zip_handle);
+    mz_zip_close(zip_handle);
+    mz_zip_delete(&zip_handle);
+    mz_stream_close(mem_stream);
+    mz_stream_mem_delete(&mem_stream);
+    
+    return xmlReader(std::string(output.begin(), output.end()));
 }
-

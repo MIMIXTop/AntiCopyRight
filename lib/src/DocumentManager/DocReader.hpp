@@ -8,11 +8,7 @@
 #include <string>
 
 namespace DocReader {
-    std::optional<QString> readFile(QByteArray &document);
-
-    std::optional<std::string> readFile(std::vector<unsigned char> &&document);
-
     std::optional<std::string> xmlReader(std::string &&xml);
 
-    std::string get7zLibraryPath();
+    std::optional<std::string> zipReader(std::span<unsigned char> &&zip);
 }

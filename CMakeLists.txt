@@ -103,7 +103,13 @@ FetchContent_Declare(
         GIT_TAG v1.15
 )       
 
-FetchContent_MakeAvailable(googletest quazip libtorch qtkeychain keychain bit7z pugixml)
+FetchContent_Declare(
+        minizip-ng
+        GIT_REPOSITORY https://github.com/zlib-ng/minizip-ng.git
+        GIT_TAG 4.0.10
+)
+
+FetchContent_MakeAvailable(googletest quazip libtorch qtkeychain keychain bit7z pugixml minizip-ng)
 
 list(APPEND CMAKE_PREFIX_PATH ${libtorch_SOURCE_DIR})
 find_package(Torch REQUIRED)

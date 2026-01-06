@@ -40,6 +40,7 @@ target_link_libraries(antyCopy_lib PUBLIC
         keychain
         bit7z
         pugixml
+        minizip
 )
 
 file(GLOB_RECURSE TEST_SRCS test/*.cpp)
