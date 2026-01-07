@@ -3,21 +3,22 @@
 #include <string>
 #include <variant>
 
-struct DTOCourseList {
-
-};
+struct DTOCourseList {};
 
 struct DTOCourseWorksList {
-    std::string courseId;
+  std::string courseId;
 };
 
 struct DTOStudentsList {
-    std::string courseId;
+  std::string courseId;
 };
 
 struct DTOStudentWorksDownload {
-
-    std::string fileId;
+  std::string fileId;
 };
 
-using DTOCreateRequest = std::variant<DTOCourseList, DTOCourseWorksList, DTOStudentsList, DTOStudentWorksDownload>;
+struct DTOUserInfo {};
+
+using DTOCreateRequest =
+    std::variant<DTOCourseList, DTOCourseWorksList, DTOStudentsList,
+                 DTOStudentWorksDownload, DTOUserInfo>;

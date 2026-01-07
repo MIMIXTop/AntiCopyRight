@@ -69,12 +69,6 @@ FetchContent_Declare(
 )
 
 FetchContent_Declare(
-        quazip
-        GIT_REPOSITORY https://github.com/stachenov/quazip.git
-        GIT_TAG v1.5
-)
-
-FetchContent_Declare(
         libtorch
         URL ${LIBTORCH_URL}
 )
@@ -109,7 +103,7 @@ FetchContent_Declare(
         GIT_TAG 4.0.10
 )
 
-FetchContent_MakeAvailable(googletest quazip libtorch qtkeychain keychain bit7z pugixml minizip-ng)
+FetchContent_MakeAvailable(googletest libtorch qtkeychain keychain bit7z pugixml minizip-ng)
 
 list(APPEND CMAKE_PREFIX_PATH ${libtorch_SOURCE_DIR})
 find_package(Torch REQUIRED)
