@@ -8,13 +8,14 @@
 #include <pugixml.hpp>
 #include <span>
 #include <string>
+#include <vector>
 
 namespace {
 struct DocWalker : public pugi::xml_tree_walker {
   std::string result;
   bool skipNextText = false;
 
-  virtual bool for_each(pugi::xml_node& node) override {
+  virtual bool for_each(pugi::xml_node &node) override {
     std::string name = node.name();
     if (name == "w:rFonts" &&
         std::string(node.attribute("w:cs").value()) == "Courier New") {
@@ -31,9 +32,9 @@ struct DocWalker : public pugi::xml_tree_walker {
     return true;
   }
 };
-}  // namespace
+} // namespace
 
-std::optional<std::string> DocReader::xmlReader(std::string&& xml) {
+std::optional<std::string> DocReader::xmlReader(std::string &&xml) {
   pugi::xml_document doc;
   doc.load_string(xml.c_str());
   DocWalker walker;
@@ -42,9 +43,9 @@ std::optional<std::string> DocReader::xmlReader(std::string&& xml) {
 }
 
 std::optional<std::string>
-DocReader::zipReader(std::span<unsigned char>&& zip) {
-  void* mem_stream = NULL;
-  void* zip_handle = NULL;
+DocReader::zipReader(std::span<unsigned char> &&zip) {
+  void *mem_stream = NULL;
+  void *zip_handle = NULL;
 
   mem_stream = mz_stream_mem_create();
   mz_stream_mem_set_buffer(mem_stream, zip.data(), zip.size());

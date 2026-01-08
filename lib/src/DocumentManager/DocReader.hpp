@@ -1,11 +1,8 @@
 #pragma once
 
-#include <QByteArray>
-#include <QString>
 #include <optional>
 #include <span>
 #include <string>
-#include <vector>
 
 namespace DocReader {
 std::optional<std::string> xmlReader(std::string &&xml);

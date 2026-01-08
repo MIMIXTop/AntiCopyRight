@@ -1,11 +1,11 @@
 #include "AuthenticationManager.hpp"
-#include <keychain/keychain.h>
 #include <boost/asio.hpp>
 #include <boost/beast.hpp>
 #include <boost/json.hpp>
 #include <boost/system/detail/error_code.hpp>
 #include <fstream>
 #include <iostream>
+#include <keychain/keychain.h>
 #include <string>
 #include <string_view>
 
@@ -13,17 +13,17 @@
 
 namespace {
 template <StringConteiner... Conteiners>
-std::string foldString(const Conteiners&... conteiners) {
+std::string foldString(const Conteiners &...conteiners) {
   std::ostringstream oss;
-  auto append = [&](const auto& c) {
-    for (auto&& s : c) {
+  auto append = [&](const auto &c) {
+    for (auto &&s : c) {
       oss << s << " ";
     }
   };
   (append(conteiners), ...);
   return oss.str();
 }
-}  // namespace
+} // namespace
 
 namespace asio = boost::asio;
 namespace beast = boost::beast;
@@ -65,7 +65,7 @@ bool AuthenticationManager::EmptyRefreshToken() {
 }
 
 void AuthenticationManager::updateTokens(
-    const boost::system::error_code& error) {
+    const boost::system::error_code &error) {
   if (!error) {
     asio::co_spawn(
         ioc,
@@ -76,7 +76,7 @@ void AuthenticationManager::updateTokens(
 
             auto res = co_await sender(req);
             handleGetTokens(res.body());
-          } catch (const std::exception& e) {
+          } catch (const std::exception &e) {
             std::cerr << e.what() << std::endl;
           }
         },
@@ -84,7 +84,8 @@ void AuthenticationManager::updateTokens(
   }
 }
 
-void AuthenticationManager::load_config(const std::vector<std::string>& scopes) {
+void AuthenticationManager::load_config(
+    const std::vector<std::string> &scopes) {
   auto parser = Util::ConfigParser();
   config_.clientId = parser["CLIENT_ID"];
   config_.clientSecret = parser["CLIENT_SECRET"];
@@ -103,7 +104,7 @@ std::vector<std::string> AuthenticationManager::getDefaultScope() {
 }
 
 void AuthenticationManager::SaveRefreshToken(
-    const std::string& refreshToken) const {
+    const std::string &refreshToken) const {
   keychain::Error error;
   keychain::setPassword(config_.package, config_.service, config_.user,
                         refreshToken, error);
@@ -164,7 +165,7 @@ asio::awaitable<void> AuthenticationManager::getTokens() {
     http::response<http::string_body> res = co_await sender(req);
 
     handleGetTokens(res.body());
-  } catch (const std::exception& e) {
+  } catch (const std::exception &e) {
     std::cerr << "Server error(get tokent)" << e.what() << std::endl;
   }
 }
@@ -196,7 +197,7 @@ std::string AuthenticationManager::extractCode(std::string_view code) {
   return std::string(codePart);
 }
 
-void AuthenticationManager::handleRequest(http::request<http::string_body>& req,
+void AuthenticationManager::handleRequest(http::request<http::string_body> &req,
                                           RequestStatus status) {
   std::string refreshToken;
   if (RequestStatus::GET_TOKEN == status) {
@@ -247,7 +248,7 @@ std::string_view AuthenticationManager::getToken() const {
 }
 
 asio::awaitable<http::response<http::string_body>>
-AuthenticationManager::sender(http::request<http::string_body>& req) {
+AuthenticationManager::sender(http::request<http::string_body> &req) {
   asio::ssl::stream<tcp::socket> ssl_socket{ioc, ctx};
   tcp::resolver resolver{ioc};
 
@@ -264,4 +265,4 @@ AuthenticationManager::sender(http::request<http::string_body>& req) {
   co_await http::async_read(ssl_socket, buffer, res, asio::use_awaitable);
   co_return res;
 }
-}  // namespace Network
+} // namespace Network

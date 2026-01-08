@@ -1,7 +1,7 @@
-#include "BoostNetwork/AuthenticationManager.hpp"
-#include "BoostNetwork/ClassroomManager.hpp"
-#include "BoostNetwork/ReplyType.hpp"
-#include "BoostNetwork/Session.hpp"
+#include "Network/AuthenticationManager.hpp"
+#include "Network/ClassroomManager.hpp"
+#include "Network/ReplyType.hpp"
+#include "Network/Session.hpp"
 #include "Util/util.hpp"
 #include <boost/beast/core/ostream.hpp>
 #include <boost/beast/http/dynamic_body_fwd.hpp>
@@ -106,9 +106,9 @@ TEST_F(ClassRoomManagerTest, GetCourses_Success) {
       }));
 
   std::vector<std::pair<int, std::string>> results_pars;
-  manager->getCourses([&](ReplyTypes::BoostReply reply) {
+  manager->getCourses([&](ReplyTypes::Reply reply) {
     std::visit(
-        util::match{[&](ReplyTypes::BoostTypes::Course reply) {
+        util::match{[&](ReplyTypes::Types::Course reply) {
                       for (std::ptrdiff_t i = 0; i < reply.course.size(); i++) {
                         auto item = reply.course.at(i).as_object();
                         results_pars.push_back(
@@ -116,7 +116,7 @@ TEST_F(ClassRoomManagerTest, GetCourses_Success) {
                              item.at("name").as_string().c_str()});
                       }
                     },
-                    [&](ReplyTypes::BoostTypes::Error reply) {
+                    [&](ReplyTypes::Types::Error reply) {
                       results_pars.push_back(
                           {1, reply.error.at("message").as_string().c_str()});
                     },

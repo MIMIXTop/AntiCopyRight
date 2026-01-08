@@ -1,11 +1,10 @@
 #include "Doc2VecModel.hpp"
 
+#include "config.hpp"
+#include <iostream>
 #include <torch/script.h>
 #include <torch/torch.h>
-#include <QDebug>
-#include <string_view>
 #include <vector>
-#include "config.hpp"
 
 namespace {
 #ifdef _WIN32
@@ -15,10 +14,10 @@ namespace {
 #define PATH_MODEL PATH_TO_UTILS "Model/doc2vec_model.pt"
 #define PATH_WORD2IDX PATH_TO_UTILS "StopWords/word2idx.txt"
 #endif
-}  // namespace
+} // namespace
 
 torch::Tensor
-Model::Doc2VecModel::getDocVector(const std::string& document) const {
+Model::Doc2VecModel::getDocVector(const std::string &document) const {
   if (model == nullptr) {
     throw std::runtime_error("To use this you must first load the model");
   }
@@ -26,7 +25,7 @@ Model::Doc2VecModel::getDocVector(const std::string& document) const {
   const std::vector tokens = Lemmatizer::getLemmas(document);
   std::vector<int32_t> indices;
 
-  for (auto&& token : tokens) {
+  for (auto &&token : tokens) {
     if (word2idx.contains(token)) {
       indices.emplace_back(word2idx.at(token));
     }
@@ -53,9 +52,9 @@ void Model::Doc2VecModel::loadModel() {
     model = std::make_unique<torch::jit::Module>(torch::jit::load(PATH_MODEL));
     model->to(device);
     model->eval();
-    qInfo() << "Model loaded";
-  } catch (const c10::Error& e) {
-    qInfo() << "Falid load model" << e.what();
+    std::cout << "Model loaded";
+  } catch (const c10::Error &e) {
+    std::cout << "Falid load model" << e.what();
   }
 
   word_embeddings = std::make_unique<torch::jit::Module>(
@@ -64,8 +63,8 @@ void Model::Doc2VecModel::loadModel() {
   embedding_dim = weights.size(1);
 }
 
-double Model::Doc2VecModel::Similarity(const torch::Tensor& doc1,
-                                       const torch::Tensor& doc2) {
+double Model::Doc2VecModel::Similarity(const torch::Tensor &doc1,
+                                       const torch::Tensor &doc2) {
   if (doc1.size(0) == 0 || doc2.size(0) == 0) {
     throw std::runtime_error("one of the vectors is empty");
   }

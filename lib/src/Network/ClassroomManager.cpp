@@ -1,7 +1,5 @@
 #include "ClassroomManager.hpp"
 
-#include <QObject>
-#include <algorithm>
 #include <boost/asio/awaitable.hpp>
 #include <boost/asio/buffer.hpp>
 #include <boost/asio/buffers_iterator.hpp>
@@ -21,8 +19,8 @@
 #include <variant>
 #include <vector>
 
-#include "BoostNetwork/ReplyType.hpp"
-#include "BoostNetwork/RequestDTO.hpp"
+#include "Network/ReplyType.hpp"
+#include "Network/RequestDTO.hpp"
 #include "Util/util.hpp"
 
 namespace {
@@ -44,19 +42,19 @@ ClassroomManager::ClassroomManager() {
                  classroomSession_->connectToSender(GOOGLE_CLASSROOM_HOST),
                  asio::detached);
 
-  driveSession_ = std::make_unique<Session>(ioContext_);
-  asio::co_spawn(ioContext_, driveSession_->connectToSender(GOOGLE_HOST),
+  googleSession_ = std::make_unique<Session>(ioContext_);
+  asio::co_spawn(ioContext_, googleSession_->connectToSender(GOOGLE_HOST),
                  asio::detached);
 
   authenticationManager_ = std::make_unique<AuthenticationManager>();
 }
 
 ClassroomManager::ClassroomManager(
-    std::unique_ptr<Session> ClassSess, std::unique_ptr<Session> DriveSess,
-    std::unique_ptr<AuthenticationManager> authMan)
+    std::unique_ptr<Session> ClassSess, std::unique_ptr<Session> GoogleSess,
+    std::unique_ptr<AuthenticationManager> AuthMan)
     : classroomSession_(std::move(ClassSess)),
-      driveSession_(std::move(DriveSess)),
-      authenticationManager_(std::move(authMan)) {
+      googleSession_(std::move(GoogleSess)),
+      authenticationManager_(std::move(AuthMan)) {
   networkThread = std::jthread([this] {
     auto work = asio::make_work_guard(ioContext_);
     ioContext_.run();
@@ -76,12 +74,12 @@ void ClassroomManager::getCourses(HandlerFunction func) {
         auto jsonBody = json::parse(body).as_object();
 
         if (res.result() != http::status::ok) {
-          ReplyTypes::BoostTypes::Error obj;
+          ReplyTypes::Types::Error obj;
           obj.error = jsonBody;
           handler(obj);
           co_return;
         }
-        ReplyTypes::BoostTypes::Course obj;
+        ReplyTypes::Types::Course obj;
         obj.course = jsonBody.at("courses").as_array();
         handler(obj);
       },
@@ -98,7 +96,15 @@ void ClassroomManager::getListCoursesWorks(HandlerFunction func,
                 requestHandler(DTOCourseWorksList{courseId}));
         auto body = beast::buffers_to_string(res.body().cdata());
         auto jsonBody = json::parse(body).as_object();
-        ReplyTypes::BoostTypes::CourseWorks obj;
+
+        if (res.result() != http::status::ok) {
+          ReplyTypes::Types::Error obj;
+          obj.error = jsonBody;
+          handler(obj);
+          co_return;
+        }
+
+        ReplyTypes::Types::CourseWorks obj;
         obj.courseWorks = jsonBody.at("courseWork").as_array();
         handler(obj);
       },
@@ -115,7 +121,15 @@ void ClassroomManager::getStudentsList(HandlerFunction func,
                 requestHandler(DTOStudentsList{courseId}));
         auto body = beast::buffers_to_string(res.body().cdata());
         auto jsonBody = json::parse(body).as_object();
-        ReplyTypes::BoostTypes::CourseWorks obj;
+
+        if (res.result() != http::status::ok) {
+          ReplyTypes::Types::Error obj;
+          obj.error = jsonBody;
+          handler(obj);
+          co_return;
+        }
+
+        ReplyTypes::Types::CourseWorks obj;
         obj.courseWorks = jsonBody.at("students").as_array();
         handler(obj);
       },
@@ -130,11 +144,21 @@ void ClassroomManager::downloadStudentWork(HandlerFunction func,
       [this, handler = std::move(func), fileName,
        fileId] -> asio::awaitable<void> {
         http::response<http::dynamic_body> res =
-            co_await driveSession_->sendRequest(
+            co_await googleSession_->sendRequest(
                 requestHandler(DTOStudentWorksDownload{fileId}));
+
+        if (res.result() != http::status::ok) {
+          ReplyTypes::Types::Error obj;
+          auto body = beast::buffers_to_string(res.body().cdata());
+          auto jsonBody = json::parse(body).as_object();
+          obj.error = jsonBody;
+          handler(obj);
+          co_return;
+        }
+
         auto bodyBegin = asio::buffers_begin(res.body().cdata());
         auto bodyEnd = asio::buffers_end(res.body().cdata());
-        ReplyTypes::BoostTypes::DownloadStudentWork obj;
+        ReplyTypes::Types::DownloadStudentWork obj;
         obj.courseWork = std::vector<uint8_t>{bodyBegin, bodyEnd};
         obj.fileName = fileName;
         handler(obj);
@@ -147,10 +171,18 @@ void ClassroomManager::getUserInfo(HandlerFunction func) {
       ioContext_,
       [this, handler = std::move(func)]() -> asio::awaitable<void> {
         http::response<http::dynamic_body> res =
-            co_await driveSession_->sendRequest(requestHandler(DTOUserInfo{}));
+            co_await googleSession_->sendRequest(requestHandler(DTOUserInfo{}));
         auto body = beast::buffers_to_string(res.body().cdata());
-        ReplyTypes::BoostTypes::UserInfo uInf;
-        uInf.userInfoDate = json::parse(std::move(body)).as_object();
+        auto jsonBody = json::parse(body).as_object();
+
+        if (res.result() != http::status::ok) {
+          ReplyTypes::Types::Error obj;
+          obj.error = jsonBody;
+          handler(obj);
+          co_return;
+        }
+        ReplyTypes::Types::UserInfo uInf;
+        uInf.userInfoDate = jsonBody;
         handler(uInf);
       },
       asio::detached);
@@ -189,7 +221,7 @@ ClassroomManager::requestHandler(DTOCreateRequest &&dto) {
                     request.set(http::field::host, GOOGLE_CLASSROOM_HOST);
                   },
                   [&request](DTOStudentWorksDownload downloadWork) {
-                    request.target(std::format("/drive/v3/files/{}&alt=media",
+                    request.target(std::format("/drive/v3/files/{}?alt=media",
                                                downloadWork.fileId));
                     request.set(http::field::host, GOOGLE_HOST);
                   },

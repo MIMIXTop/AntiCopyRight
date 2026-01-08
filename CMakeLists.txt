@@ -74,21 +74,9 @@ FetchContent_Declare(
 )
 
 FetchContent_Declare(
-        qtkeychain
-        GIT_REPOSITORY https://github.com/frankosterfeld/qtkeychain.git
-        GIT_TAG ad7344c45a86a4f66cbafc4b081b5f7b876cb0b7
-)
-
-FetchContent_Declare(
         keychain
         GIT_REPOSITORY https://github.com/hrantzsch/keychain.git
         GIT_TAG v1.3.1
-)
-
-FetchContent_Declare(
-        bit7z
-        GIT_REPOSITORY https://github.com/rikyoz/bit7z.git
-        GIT_TAG v4.0.10
 )
 
 FetchContent_Declare(
@@ -103,16 +91,13 @@ FetchContent_Declare(
         GIT_TAG 4.0.10
 )
 
-FetchContent_MakeAvailable(googletest libtorch qtkeychain keychain bit7z pugixml minizip-ng)
+FetchContent_MakeAvailable(googletest libtorch keychain pugixml minizip-ng)
 
 list(APPEND CMAKE_PREFIX_PATH ${libtorch_SOURCE_DIR})
 find_package(Torch REQUIRED)
 find_package(Qt6 REQUIRED COMPONENTS
         Core
-        Network
-        NetworkAuth
         Gui
-        Test
         Quick
 )
 
@@ -125,7 +110,6 @@ target_include_directories(antyCopy_lib PUBLIC ${CMAKE_BINARY_DIR})
 file(GLOB_RECURSE SRCS src/*.cpp)
 
 qt_add_executable(AntiCopyRight ${SRCS})
-
 
 target_link_libraries(AntiCopyRight PRIVATE Qt6::Core)
 qt_add_qml_module(AntiCopyRight

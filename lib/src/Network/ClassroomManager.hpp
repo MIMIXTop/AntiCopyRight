@@ -1,7 +1,7 @@
 #pragma once
 
-#include <BoostNetwork/AuthenticationManager.hpp>
-#include <BoostNetwork/Session.hpp>
+#include <Network/AuthenticationManager.hpp>
+#include <Network/Session.hpp>
 #include <boost/asio/awaitable.hpp>
 #include <boost/beast/http/dynamic_body_fwd.hpp>
 #include <boost/beast/http/message_fwd.hpp>
@@ -13,15 +13,15 @@
 #include "ReplyType.hpp"
 #include "RequestDTO.hpp"
 
-using HandlerFunction = std::function<void(ReplyTypes::BoostReply reply)>;
+using HandlerFunction = std::function<void(ReplyTypes::Reply reply)>;
 
 namespace Network {
 class ClassroomManager : public std::enable_shared_from_this<ClassroomManager> {
 public:
   ClassroomManager();
   ClassroomManager(std::unique_ptr<Session> ClassSess,
-                   std::unique_ptr<Session> DriveSess,
-                   std::unique_ptr<AuthenticationManager> authMan);
+                   std::unique_ptr<Session> GoogleSess,
+                   std::unique_ptr<AuthenticationManager> AuthMan);
 
   virtual ~ClassroomManager();
 
@@ -43,7 +43,7 @@ private:
   requestHandler(DTOCreateRequest &&dto);
 
   std::unique_ptr<Session> classroomSession_;
-  std::unique_ptr<Session> driveSession_;
+  std::unique_ptr<Session> googleSession_;
   std::unique_ptr<AuthenticationManager> authenticationManager_;
 
   boost::asio::io_context ioContext_;

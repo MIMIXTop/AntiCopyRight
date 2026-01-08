@@ -1,4 +1,4 @@
-#include <BoostNetwork/AuthenticationManager.hpp>
+#include <Network/AuthenticationManager.hpp>
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>

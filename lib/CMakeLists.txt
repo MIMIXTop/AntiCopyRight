@@ -4,19 +4,13 @@ file(GLOB_RECURSE SRCS src/*.cpp)
 find_package(Boost REQUIRED json)
 
 add_library(antyCopy_lib STATIC ${SRCS})
-target_include_directories(antyCopy_lib PUBLIC src ${QTKEYCHAIN_INCLUDE_DIRS} )
 target_compile_definitions(antyCopy_lib PRIVATE
         MYSTEM_EXECUTABLE="${MYSTEM_EXE}"
 )
 
 find_package(OpenSSL REQUIRED)
 target_link_libraries(antyCopy_lib PUBLIC
-        Qt6::Core
-        Qt6::Network
-        Qt6::NetworkAuth
-        Qt6::Gui
         "${TORCH_LIBRARIES}"
-        qt6keychain
         Boost::headers
         Boost::json
         OpenSSL::SSL
@@ -38,8 +32,6 @@ target_link_libraries(antyCopy_tests
         gtest
         gtest_main
         gmock
-
-        Qt6::Test
         antyCopy_lib
 )
 

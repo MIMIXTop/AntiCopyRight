@@ -1,10 +1,9 @@
 #include "Lemmatizer.hpp"
-#include <Util/util.hpp>
 #include "config.hpp"
+#include <Util/util.hpp>
 
-#include <QDebug>
-#include <algorithm>
 #include <fstream>
+#include <iostream>
 
 #ifndef MYSTEM_EXECUTABLE
 #error "MYSTEM_EXECUTABLE не задан!"
@@ -18,7 +17,7 @@ namespace {
 #endif
 
 std::unordered_set<std::string>
-getStopWords(const std::string& path = PATH_STOP_WORDS) {
+getStopWords(const std::string &path = PATH_STOP_WORDS) {
   std::unordered_set<std::string> stopWords = {};
 
   if (std::ifstream file(path); file.is_open()) {
@@ -28,23 +27,23 @@ getStopWords(const std::string& path = PATH_STOP_WORDS) {
     }
     file.close();
   } else {
-    qInfo() << "Could not open file";
+    std::cout << "Could not open file";
   }
 
   return stopWords;
 }
 
-}  // namespace
+} // namespace
 
 Lemmatizer::Lemmatizer() : stopWords(getStopWords()) {}
 
-std::vector<std::string> Lemmatizer::getLemmas(const std::string& text) {
+std::vector<std::string> Lemmatizer::getLemmas(const std::string &text) {
   std::vector<std::string> lemmas;
   std::string command =
       "echo \"" + text + "\" | " + MYSTEM_EXECUTABLE + " -l -n";
-  FILE* pipe = popen(command.c_str(), "r");
+  FILE *pipe = popen(command.c_str(), "r");
   if (pipe == nullptr) {
-    qInfo() << "Could not open pipe";
+    std::cout << "Could not open pipe";
   }
 
   char buffer[128];

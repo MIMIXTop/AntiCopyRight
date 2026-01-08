@@ -10,7 +10,7 @@
 #include <boost/json/array.hpp>
 
 namespace ReplyTypes {
-namespace BoostTypes {
+namespace Types {
 struct Course {
   boost::json::array course;
 };
@@ -34,11 +34,11 @@ struct Error {
 struct UserInfo {
   boost::json::object userInfoDate;
 };
-} // namespace BoostTypes
+} // namespace Types
 
-using BoostReply =
-    std::variant<BoostTypes::Course, BoostTypes::CourseWorks,
-                 BoostTypes::StudentList, BoostTypes::StudentWorks,
-                 BoostTypes::DownloadStudentWork, BoostTypes::Error,
-                 BoostTypes::UserInfo>;
+using Reply =
+    std::variant<Types::Course, Types::CourseWorks,
+                 Types::StudentList, Types::StudentWorks,
+                 Types::DownloadStudentWork, Types::Error,
+                 Types::UserInfo>;
 } // namespace ReplyTypes
