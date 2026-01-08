@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.31)
+cmake_minimum_required(VERSION 3.20)
 project(AntiCopyRight LANGUAGES CXX)
 
 include(FetchContent)
@@ -10,8 +10,6 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 set(CMAKE_AUTOMOC ON)
-set(CMAKE_AUTORCC ON)
-set(CMAKE_AUTOUIC ON)
 
 set(BUILD_TESTS OFF CACHE BOOL "" FORCE)
 set(BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
@@ -71,42 +69,47 @@ FetchContent_Declare(
 )
 
 FetchContent_Declare(
-        quazip
-        GIT_REPOSITORY https://github.com/stachenov/quazip.git
-        GIT_TAG v1.5
-)
-
-FetchContent_Declare(
         libtorch
         URL ${LIBTORCH_URL}
 )
 
 FetchContent_Declare(
-        qtkeychain
-        GIT_REPOSITORY https://github.com/frankosterfeld/qtkeychain.git
-        GIT_TAG ad7344c45a86a4f66cbafc4b081b5f7b876cb0b7
+        keychain
+        GIT_REPOSITORY https://github.com/hrantzsch/keychain.git
+        GIT_TAG v1.3.1
 )
 
-FetchContent_MakeAvailable(googletest quazip libtorch qtkeychain)
+FetchContent_Declare(
+        pugixml
+        GIT_REPOSITORY https://github.com/zeux/pugixml.git
+        GIT_TAG v1.15
+)       
+
+FetchContent_Declare(
+        minizip-ng
+        GIT_REPOSITORY https://github.com/zlib-ng/minizip-ng.git
+        GIT_TAG 4.0.10
+)
+
+FetchContent_MakeAvailable(googletest libtorch keychain pugixml minizip-ng)
 
 list(APPEND CMAKE_PREFIX_PATH ${libtorch_SOURCE_DIR})
 find_package(Torch REQUIRED)
 find_package(Qt6 REQUIRED COMPONENTS
         Core
-        Network
-        NetworkAuth
         Gui
-        Test
         Quick
 )
-find_package(Qt6 REQUIRED COMPONENTS Core)
+
+configure_file(config.hpp.in ${CMAKE_BINARY_DIR}/config.hpp @ONLY)
+include_directories(${CMAKE_BINARY_DIR})
 
 add_subdirectory(lib)
+target_include_directories(antyCopy_lib PUBLIC ${CMAKE_BINARY_DIR})
 
 file(GLOB_RECURSE SRCS src/*.cpp)
 
 qt_add_executable(AntiCopyRight ${SRCS})
-
 
 target_link_libraries(AntiCopyRight PRIVATE Qt6::Core)
 qt_add_qml_module(AntiCopyRight

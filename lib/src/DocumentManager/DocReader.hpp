@@ -1,10 +1,11 @@
 #pragma once
 
-#include <QByteArray>
-#include <QString>
-#include <quazip/quazip.h>
 #include <optional>
+#include <span>
+#include <string>
 
 namespace DocReader {
-    std::optional<QString> readFile(QByteArray &document);
-}
+std::optional<std::string> xmlReader(std::string &&xml);
+
+std::optional<std::string> zipReader(std::span<unsigned char> &&zip);
+} // namespace DocReader

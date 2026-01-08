@@ -9,19 +9,17 @@
 
 namespace util {
 
-    //match operator
-    template <typename ...Lambdas>
-    struct match : Lambdas... {
-        using Lambdas::operator()...;
-    };
+// match operator
+template <typename... Lambdas> struct match : Lambdas... {
+  using Lambdas::operator()...;
+};
 
-    template <typename ...Lambdas>
-    match(Lambdas... lambdas) -> match<Lambdas...>;
+template <typename... Lambdas> match(Lambdas... lambdas) -> match<Lambdas...>;
 
-    class StringWorker {
-    public:
-        static std::string getFirstLemma(std::string &line);
-    };
-} // util
+class StringWorker {
+ public:
+  static std::string getFirstLemma(std::string& line);
+};
+}  // namespace util
 
-#endif //UTIL_HPP
+#endif  // UTIL_HPP

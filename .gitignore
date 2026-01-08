@@ -7,6 +7,12 @@
 /dataSources/
 /dataSources.local.xml
 
-/build/
 /cmake-build-*/
 /Utils/Network/*.json
+
+build
+.vscode
+.cache
+.idea
+.env
+.qtcreator

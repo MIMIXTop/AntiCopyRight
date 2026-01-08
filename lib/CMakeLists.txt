@@ -1,21 +1,23 @@
 project(antyCopy_lib)
 set(CMAKE_AUTOMOC ON)
 file(GLOB_RECURSE SRCS src/*.cpp)
+find_package(Boost REQUIRED json)
 
-add_library(antyCopy_lib STATIC ${SRCS}
-        src/Network/keychaintokens.cpp)
-target_include_directories(antyCopy_lib PUBLIC src ${QTKEYCHAIN_INCLUDE_DIRS} )
+add_library(antyCopy_lib STATIC ${SRCS})
 target_compile_definitions(antyCopy_lib PRIVATE
         MYSTEM_EXECUTABLE="${MYSTEM_EXE}"
 )
+
+find_package(OpenSSL REQUIRED)
 target_link_libraries(antyCopy_lib PUBLIC
-        QuaZip::QuaZip
-        Qt6::Core
-        Qt6::Network
-        Qt6::NetworkAuth
-        Qt6::Gui
         "${TORCH_LIBRARIES}"
-        qt6keychain
+        Boost::headers
+        Boost::json
+        OpenSSL::SSL
+        OpenSSL::Crypto
+        keychain
+        pugixml
+        minizip
 )
 
 file(GLOB_RECURSE TEST_SRCS test/*.cpp)
@@ -29,7 +31,9 @@ target_compile_definitions(antyCopy_tests PRIVATE
 target_link_libraries(antyCopy_tests
         gtest
         gtest_main
-        Qt6::Test
+        gmock
         antyCopy_lib
 )
+
+
 
