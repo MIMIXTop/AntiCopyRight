@@ -10,81 +10,76 @@
 
 template <class T>
 concept StringConteiner = requires(T t) {
-  typename T::value_type;
-  requires std::same_as<typename T::value_type, std::string>;
-  { t.begin() } -> std::input_iterator;
-  { t.end() } -> std::input_iterator;
+    typename T::value_type;
+    requires std::same_as<typename T::value_type, std::string>;
+    { t.begin() } -> std::input_iterator;
+    { t.end() } -> std::input_iterator;
 };
 
 namespace Network {
 class AuthenticationManager {
- public:
-  AuthenticationManager(std::vector<std::string> scopes = getDefaultScope(),
-                        int port = 8080);
+public:
+    AuthenticationManager(std::vector<std::string> scopes = getDefaultScope(), int port = 8080);
 
-  void run_server();
+    void run_server();
 
-  virtual ~AuthenticationManager();
+    virtual ~AuthenticationManager();
 
-  std::string getAuthUrl();
+    std::string getAuthUrl();
 
-  virtual bool EmptyAccessToken() const;
+    virtual bool EmptyAccessToken() const;
 
-  bool EmptyRefreshToken();
+    bool EmptyRefreshToken();
 
-  virtual std::string_view getToken() const;
+    virtual std::string_view getToken() const;
 
- private:
-  struct {
-    const std::string package = "com.example.AntyCopyRigtht";
-    const std::string service = "authentication-sevice";
-    const std::string user = "Admin";
-    std::string authUri;
-    std::string tokenUri;
-    std::string clientId;
-    std::string clientSecret;
-    std::string accessToken;
-    std::string refreshToken;
-    std::string code;
-    std::string scope;
-  } config_;
+private:
+    struct {
+        const std::string package = "com.example.AntyCopyRigtht";
+        const std::string service = "authentication-sevice";
+        const std::string user = "Admin";
+        std::string authUri;
+        std::string tokenUri;
+        std::string clientId;
+        std::string clientSecret;
+        std::string accessToken;
+        std::string refreshToken;
+        std::string code;
+        std::string scope;
+    } config_;
 
-  enum class RequestStatus {
-    GET_TOKEN,
-    UPDATE_TOKENS,
-  };
+    enum class RequestStatus {
+        GET_TOKEN,
+        UPDATE_TOKENS,
+    };
 
-  void load_config(const std::vector<std::string>& scopes);
+    void load_config(const std::vector<std::string>& scopes);
 
-  static std::vector<std::string> getDefaultScope();
+    static std::vector<std::string> getDefaultScope();
 
-  void SaveRefreshToken(const std::string& refreshToken) const;
+    void SaveRefreshToken(const std::string& refreshToken) const;
 
-  void handleRequest(
-      boost::beast::http::request<boost::beast::http::string_body>& req,
-      RequestStatus status);
+    void handleRequest(boost::beast::http::request<boost::beast::http::string_body>& req, RequestStatus status);
 
-  boost::asio::awaitable<void> listen();
+    boost::asio::awaitable<void> listen();
 
-  boost::asio::awaitable<void>
-  workWithClient(boost::asio::ip::tcp::socket socket);
+    boost::asio::awaitable<void> workWithClient(boost::asio::ip::tcp::socket socket);
 
-  boost::asio::awaitable<
-      boost::beast::http::response<boost::beast::http::string_body>>
-  sender(boost::beast::http::request<boost::beast::http::string_body>& req);
+    boost::asio::awaitable<boost::beast::http::response<boost::beast::http::string_body>>
+    sender(boost::beast::http::request<boost::beast::http::string_body>& req);
 
-  boost::asio::awaitable<void> getTokens();
+    boost::asio::awaitable<void> getTokens();
 
-  void handleGetTokens(std::string_view boby);
+    void handleGetTokens(std::string_view boby);
 
-  std::string extractCode(std::string_view code);
+    std::string extractCode(std::string_view code);
 
-  void updateTokens(const boost::system::error_code& error);
+    void updateTokens(const boost::system::error_code& error);
 
-  boost::asio::io_context ioc;
-  boost::asio::steady_timer timer;
-  boost::asio::ssl::context ctx;
-  std::string host_ = "127.0.0.1";
-  unsigned short port_;
+    boost::asio::io_context ioc;
+    boost::asio::steady_timer timer;
+    boost::asio::ssl::context ctx;
+    std::string host_ = "127.0.0.1";
+    unsigned short port_;
 };
-}  // namespace Network
+}   // namespace Network

@@ -1,24 +1,42 @@
-#include <QFile>
+#include <QDebug>
 #include <QGuiApplication>
-#include <QObject>
 #include <QQmlApplicationEngine>
-
-#include <QmlModels/courselistmodel.hpp>
-#include <QmlModels/coursworkslistmodel.hpp>
-#include <QmlModels/proxymodel.hpp>
+#include <QQuickWindow>
+#include <print>
 
 int main(int argc, char* argv[]) {
-  QGuiApplication app(argc, argv);
-  QQmlApplicationEngine engine;
+    QGuiApplication app(argc, argv);
 
-  qmlRegisterType<CourseListModel>("MyModels", 1, 0, "CourseModel");
-  qmlRegisterType<CoursWorksListModel>("MyModels", 1, 0, "WorksModel");
-  qmlRegisterType<ProxyModel>("MyModels", 1, 0, "WorksByCoursProxy");
+    std::println("https://youtu.be/xvFZjo5PgG0?si=AkVUMST4gQ_NMMu4");
 
-  QObject::connect(
-      &engine, &QQmlApplicationEngine::objectCreationFailed, &app,
-      []() { QCoreApplication::exit(-1); }, Qt::QueuedConnection);
+    QQmlApplicationEngine engine;
 
-  engine.loadFromModule("QML_SRC", "Main");
-  return app.exec();
+    QObject::connect(
+        &engine, &QQmlApplicationEngine::objectCreationFailed, &app,
+        []() {
+            qCritical() << "Failed to create QML object!";
+            QCoreApplication::exit(-1);
+        },
+        Qt::QueuedConnection);
+
+    QObject::connect(
+        &engine, &QQmlApplicationEngine::objectCreated, &app,
+        [](QObject* obj, const QUrl& url) {
+            if (!obj) {
+                qCritical() << "Object is null! URL:" << url;
+                QCoreApplication::exit(-1);
+            } else {
+                qDebug() << "QML object created successfully:" << obj;
+                // Принудительно показываем окно
+                QQuickWindow* window = qobject_cast<QQuickWindow*>(obj);
+                if (window) {
+                    window->show();
+                }
+            }
+        },
+        Qt::QueuedConnection);
+
+    engine.loadFromModule("QML_SRC", "MainWindow");
+
+    return app.exec();
 }

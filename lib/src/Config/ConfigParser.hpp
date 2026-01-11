@@ -4,14 +4,14 @@
 
 namespace Util {
 class ConfigParser {
- public:
-  ConfigParser();
+public:
+    ConfigParser();
 
-  ~ConfigParser() = default;
+    ~ConfigParser() = default;
 
-  std::string_view operator[](const std::string& key) const;
+    std::string_view operator[](const std::string& key) const;
 
- private:
-  std::unordered_map<std::string, std::string> variables;
+private:
+    std::unordered_map<std::string, std::string> variables;
 };
-}  // namespace Util
+}   // namespace Util

@@ -99,6 +99,9 @@ find_package(Qt6 REQUIRED COMPONENTS
         Core
         Gui
         Quick
+        QuickControls2
+        QuickLayouts
+        QuickTemplates2
 )
 
 configure_file(config.hpp.in ${CMAKE_BINARY_DIR}/config.hpp @ONLY)
@@ -108,31 +111,26 @@ add_subdirectory(lib)
 target_include_directories(antyCopy_lib PUBLIC ${CMAKE_BINARY_DIR})
 
 file(GLOB_RECURSE SRCS src/*.cpp)
+file(GLOB_RECURSE HEADERS src/*.hpp)
 
-qt_add_executable(AntiCopyRight ${SRCS})
+qt_add_executable(AntiCopyRight ${SRCS} ${HEADERS})
 
-target_link_libraries(AntiCopyRight PRIVATE Qt6::Core)
+target_link_libraries(AntiCopyRight PRIVATE Qt6::Core Qt6::Quick Qt6::QuickControls2)
 qt_add_qml_module(AntiCopyRight
         URI QML_SRC
         VERSION 1.0
         QML_FILES
-                src/qml/Main.qml
-                src/qml/SideBar.qml
-                src/qml/CourseItem.qml
-                src/qml/WorkItem.qml
+                "src/qml/MainWindow.qml"
+        RESOURCES
+                "resource/menu-128.png"
+                "resource/menu-128.svg"
+                "resource/menu-64.svg"
 )
 
 add_dependencies(AntiCopyRight MyStemBinary)
 
-add_custom_command(
-        TARGET AntiCopyRight POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy_directory
-        ${CMAKE_CURRENT_SOURCE_DIR}/Utils
-        ${CMAKE_BINARY_DIR}/Utils
-)
-
 target_include_directories(${PROJECT_NAME} PUBLIC src)
-target_link_libraries(${PROJECT_NAME} PUBLIC antyCopy_lib Qt6::Quick Qt6::Core)
+target_link_libraries(${PROJECT_NAME} PUBLIC antyCopy_lib Qt6::Quick Qt6::QuickControls2 Qt6::Core)
 
 target_compile_definitions(AntiCopyRight PRIVATE
         MYSTEM_EXECUTABLE="${MYSTEM_EXE}"

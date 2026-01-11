@@ -5,11 +5,11 @@
 #include <vector>
 
 class Lemmatizer {
- public:
-  Lemmatizer();
-  static std::vector<std::string> getLemmas(const std::string& text);
-  ~Lemmatizer() = default;
+public:
+    Lemmatizer();
+    static std::vector<std::string> getLemmas(const std::string& text);
+    ~Lemmatizer() = default;
 
- private:
-  std::unordered_set<std::string> stopWords;
+private:
+    std::unordered_set<std::string> stopWords;
 };
