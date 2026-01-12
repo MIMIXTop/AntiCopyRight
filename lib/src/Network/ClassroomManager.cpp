@@ -1,5 +1,6 @@
 #include "ClassroomManager.hpp"
 
+#include <algorithm>
 #include <boost/asio/awaitable.hpp>
 #include <boost/asio/buffer.hpp>
 #include <boost/asio/buffers_iterator.hpp>
@@ -29,6 +30,8 @@ namespace {
 #define GOOGLE_CLASSROOM_HOST "classroom.googleapis.com"
 #define GOOGLE_HOST           "googleapis.com"
 
+#define GET_FIELD(object, field) object.as_object().at(#field).as_string()
+
 namespace asio = boost::asio;
 namespace beast = boost::beast;
 namespace http = beast::http;
@@ -47,7 +50,6 @@ ClassroomManager::ClassroomManager() {
 
     authenticationManager_ = std::make_unique<AuthenticationManager>();
 }
-
 ClassroomManager::ClassroomManager(
     std::unique_ptr<Session> ClassSess, std::unique_ptr<Session> GoogleSess,
     std::unique_ptr<AuthenticationManager> AuthMan)
@@ -68,21 +70,20 @@ void ClassroomManager::getCourses(HandlerFunction func) {
         [this, handler = std::move(func)] -> asio::awaitable<void> {
             http::response<http::dynamic_body> res =
                 co_await classroomSession_->sendRequest(requestHandler(DTOCourseList {}));
+
             auto body = beast::buffers_to_string(res.body().cdata());
             auto jsonBody = json::parse(body).as_object();
-
             if (res.result() != http::status::ok) {
                 ReplyTypes::Types::Error obj;
-                obj.error = jsonBody;
+                obj.errorMessage = std::move(beast::buffers_to_string(res.body().cdata()));
                 handler(obj);
                 co_return;
             }
+
             ReplyTypes::Types::Courses obj;
             auto tempCourseList = jsonBody.at("courses").as_array();
             for (const auto& course : tempCourseList) {
-                auto tempObj = course.as_object();
-                obj.courseList.emplace_back(
-                    tempObj.at("id").as_string().c_str(), tempObj.at("name").as_string().c_str());
+                obj.courseList.emplace_back(GET_FIELD(course, id).c_str(), GET_FIELD(course, name).c_str());
             }
             handler(obj);
         },
@@ -95,66 +96,64 @@ void ClassroomManager::getListCoursesWorks(const std::string& courseId, HandlerF
         [this, handler = std::move(func), courseId] -> asio::awaitable<void> {
             http::response<http::dynamic_body> res =
                 co_await classroomSession_->sendRequest(requestHandler(DTOCourseWorksList { courseId }));
-            auto body = beast::buffers_to_string(res.body().cdata());
-            auto jsonBody = json::parse(body).as_object();
 
             if (res.result() != http::status::ok) {
                 ReplyTypes::Types::Error obj;
-                obj.error = jsonBody;
+                obj.errorMessage = std::move(beast::buffers_to_string(res.body().cdata()));
                 handler(obj);
                 co_return;
             }
+            auto body = beast::buffers_to_string(res.body().cdata());
+            auto jsonBody = json::parse(body).as_object();
 
             ReplyTypes::Types::CourseWorks obj;
+
             auto tempObjectList = jsonBody.at("courseWork").as_array();
             for (auto&& courseWork : tempObjectList) {
-                auto tempObj = courseWork.as_object();
                 obj.courseWorkList.emplace_back(
-                    tempObj.at("id").as_string().c_str(), tempObj.at("courseId").as_string().c_str(),
-                    tempObj.at("title").as_string().c_str(), tempObj.at("description").as_string().c_str());
+                    GET_FIELD(courseWork, id).c_str(), GET_FIELD(courseWork, courseId).c_str(),
+                    GET_FIELD(courseWork, title).c_str(), GET_FIELD(courseWork, description).c_str());
             }
             handler(obj);
         },
         asio::detached);
 }
 
-void ClassroomManager::getStudentWorks(
+void ClassroomManager::getStudentsWorks(
     const std::string& courseId, const std::string& courseWorkId, HandlerFunction func) {
     asio::co_spawn(
         ioContext_,
         [this, handler = std::move(func), &courseId, &courseWorkId]() -> asio::awaitable<void> {
             http::response<http::dynamic_body> res = co_await classroomSession_->sendRequest(
                 requestHandler(DTOStudentWorksData { .courseId = courseId, .courseWorkId = courseWorkId }));
-            auto body = beast::buffers_to_string(res.body().cdata());
-            auto jsonBody = json::parse(body).as_object();
 
             if (res.result() != http::status::ok) {
                 ReplyTypes::Types::Error obj;
-                obj.error = jsonBody;
+                obj.errorMessage = std::move(beast::buffers_to_string(res.body().cdata()));
                 handler(obj);
                 co_return;
             }
+            auto body = beast::buffers_to_string(res.body().cdata());
+            auto jsonBody = json::parse(body).as_object();
 
             ReplyTypes::Types::StudentWorks obj;
+
             for (auto&& studentSubmission : jsonBody.at("studentSubmissions").as_array()) {
-                std::string courseId = studentSubmission.as_object().at("courseId").as_string().c_str();
-                std::string courseWorkId = studentSubmission.as_object().at("courseWorkId").as_string().c_str();
-                std::string userId = studentSubmission.as_object().at("userId").as_string().c_str();
-                std::string id = studentSubmission.as_object().at("id").as_string().c_str();
                 ReplyTypes::Types::StudentWorks::StudentWork temp;
-                temp.id = std::move(id);
-                temp.courseWorkId = std::move(courseWorkId);
-                temp.courseId = std::move(courseId);
-                temp.userId = std::move(userId);
+
+                temp.id = std::move(GET_FIELD(studentSubmission, id));
+                temp.courseWorkId = std::move(GET_FIELD(studentSubmission, courseWorkId));
+                temp.courseId = std::move(GET_FIELD(studentSubmission, courseId));
+                temp.userId = std::move(GET_FIELD(studentSubmission, userId));
 
                 for (
                     auto&& files :
                     studentSubmission.as_object().at("assignmentSubmission").as_object().at("attachments").as_array()) {
-                    auto driveFiles = files.as_object().at("driveFile").as_object();
+                    auto driveFiles = files.as_object().at("driveFile");
+
                     temp.files.emplace_back(
-                        driveFiles.at("id").as_string().c_str(), driveFiles.at("title").as_string().c_str(),
-                        driveFiles.at("alternateLink").as_string().c_str(),
-                        driveFiles.at("thumbnailUrl").as_string().c_str());
+                        GET_FIELD(driveFiles, id).c_str(), GET_FIELD(driveFiles, title).c_str(),
+                        GET_FIELD(driveFiles, alternateLink).c_str(), GET_FIELD(driveFiles, thumbnailUrl).c_str());
                 }
                 obj.studentWorkList.push_back(std::move(temp));
             }
@@ -168,18 +167,25 @@ void ClassroomManager::getStudentsList(const std::string& courseId, HandlerFunct
         [this, handler = std::move(func), courseId] -> asio::awaitable<void> {
             http::response<http::dynamic_body> res =
                 co_await classroomSession_->sendRequest(requestHandler(DTOStudentsList { courseId }));
-            auto body = beast::buffers_to_string(res.body().cdata());
-            auto jsonBody = json::parse(body).as_object();
 
             if (res.result() != http::status::ok) {
                 ReplyTypes::Types::Error obj;
-                obj.error = jsonBody;
+                obj.errorMessage = std::move(beast::buffers_to_string(res.body().cdata()));
                 handler(obj);
                 co_return;
             }
+            auto body = beast::buffers_to_string(res.body().cdata());
+            auto jsonBody = json::parse(body).as_object();
 
             ReplyTypes::Types::StudentList obj;
-            obj.studentsList = jsonBody.at("students").as_array();
+            for (auto&& studentValue : jsonBody.at("students").as_array()) {
+                obj.courseId = std::move(GET_FIELD(studentValue, courseId));
+                auto&& profil = studentValue.as_object().at("profile");
+
+                obj.studentsList.emplace_back(
+                    GET_FIELD(profil, id).c_str(), profil.at("name").as_object().at("fullName").as_string().c_str(),
+                    GET_FIELD(profil, emailAddress).c_str(), GET_FIELD(profil, photoUrl).c_str());
+            }
             handler(obj);
         },
         asio::detached);
@@ -195,9 +201,7 @@ void ClassroomManager::downloadStudentWork(
 
             if (res.result() != http::status::ok) {
                 ReplyTypes::Types::Error obj;
-                auto body = beast::buffers_to_string(res.body().cdata());
-                auto jsonBody = json::parse(body).as_object();
-                obj.error = jsonBody;
+                obj.errorMessage = std::move(beast::buffers_to_string(res.body().cdata()));
                 handler(obj);
                 co_return;
             }
@@ -218,17 +222,21 @@ void ClassroomManager::getUserInfo(HandlerFunction func) {
         [this, handler = std::move(func)]() -> asio::awaitable<void> {
             http::response<http::dynamic_body> res =
                 co_await googleSession_->sendRequest(requestHandler(DTOUserInfo {}));
-            auto body = beast::buffers_to_string(res.body().cdata());
-            auto jsonBody = json::parse(body).as_object();
 
             if (res.result() != http::status::ok) {
                 ReplyTypes::Types::Error obj;
-                obj.error = jsonBody;
+                obj.errorMessage = std::move(beast::buffers_to_string(res.body().cdata()));
                 handler(obj);
                 co_return;
             }
+            auto body = beast::buffers_to_string(res.body().cdata());
+            auto jsonBody = json::parse(body);
+
             ReplyTypes::Types::UserInfo uInf;
-            uInf.userInfoDate = jsonBody;
+            uInf.id = std::move(GET_FIELD(jsonBody, id));
+            uInf.name = std::move(GET_FIELD(jsonBody, name));
+            uInf.email = std::move(GET_FIELD(jsonBody, email));
+            uInf.photoUrl = std::move(GET_FIELD(jsonBody, picture));
             handler(uInf);
         },
         asio::detached);

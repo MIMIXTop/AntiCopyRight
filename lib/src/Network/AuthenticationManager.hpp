@@ -33,6 +33,8 @@ public:
 
     virtual std::string_view getToken() const;
 
+    static std::vector<std::string> getDefaultScope();
+
 private:
     struct {
         const std::string package = "com.example.AntyCopyRigtht";
@@ -54,8 +56,6 @@ private:
     };
 
     void load_config(const std::vector<std::string>& scopes);
-
-    static std::vector<std::string> getDefaultScope();
 
     void SaveRefreshToken(const std::string& refreshToken) const;
 

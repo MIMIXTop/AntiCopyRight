@@ -88,10 +88,16 @@ void AuthenticationManager::load_config(const std::vector<std::string>& scopes) 
 
 std::vector<std::string> AuthenticationManager::getDefaultScope() {
     return {
+        "https://www.googleapis.com/auth/classroom.courses.readonly",
+        "https://www.googleapis.com/auth/classroom.coursework.me.readonly",
         "https://www.googleapis.com/auth/classroom.coursework.students",
         "https://www.googleapis.com/auth/classroom.coursework.students.readonly",
-        "https://www.googleapis.com/auth/drive.readonly", "https://www.googleapis.com/auth/classroom.courses",
-        "https://www.googleapis.com/auth/classroom.rosters.readonly"
+        "https://www.googleapis.com/auth/classroom.rosters.readonly",
+        "https://www.googleapis.com/auth/classroom.student-submissions.students.readonly",
+        "https://www.googleapis.com/auth/drive.readonly",
+        "openid",
+        "profile",
+        "email"
     };
 }
 

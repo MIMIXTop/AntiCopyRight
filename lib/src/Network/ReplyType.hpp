@@ -62,14 +62,27 @@ struct StudentWorks {
 };
 
 struct StudentList {
-    boost::json::array studentsList;
+    std::string courseId;
+    struct Student {
+        std::string userId;
+        std::string fullName;
+        std::string email;
+        std::string photoUrl;
+
+        Student(const std::string& id, const std::string& fullName, const std::string& email, const std::string& photo)
+          : userId(id), fullName(fullName), email(email), photoUrl(photo) {}
+    };
+    std::vector<Student> studentsList;
 };
 struct Error {
-    boost::json::object error;
+    std::string errorMessage;
 };
 
 struct UserInfo {
-    boost::json::object userInfoDate;
+    std::string id;
+    std::string name;
+    std::string photoUrl;
+    std::string email;
 };
 }   // namespace Types
 

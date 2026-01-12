@@ -9,7 +9,6 @@
 #include <boost/beast/http/message.hpp>
 #include <boost/beast/http/status.hpp>
 #include <boost/json/serialize.hpp>
-#include <cstddef>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 #include <memory>
@@ -85,8 +84,8 @@ TEST_F(ClassRoomManagerTest, GetCourses_Success) {
 
     std::string json = R"({
 			"courses": [
-				{"id": 1, "name": "C++"},
-				{"id": 2, "name": "NoPython"}
+				{"id": "1", "name": "C++"},
+				{"id": "2", "name": "NoPython"}
 			]
 		})";
 
@@ -105,17 +104,13 @@ TEST_F(ClassRoomManagerTest, GetCourses_Success) {
     manager->getCourses([&](ReplyTypes::Reply reply) {
         std::visit(
             util::match {
-              [&](ReplyTypes::Types::Course reply) {
-                  for (std::ptrdiff_t i = 0; i < reply.course.size(); i++) {
-                      auto item = reply.course.at(i).as_object();
-                      results_pars.push_back(
-                          { static_cast<int>(item.at("id").as_int64()), item.at("name").as_string().c_str() });
+              [&](ReplyTypes::Types::Courses reply) {
+                  for (auto course : reply.courseList) {
+                      results_pars.push_back({ std::stoi(course.courseId), course.courseName });
                   }
               },
-              [&](ReplyTypes::Types::Error reply) {
-                  results_pars.push_back({ 1, reply.error.at("message").as_string().c_str() });
-              },
-              [&](auto reply) { results_pars.push_back({ 1, "Unknown reply type" }); } },
+              [&](ReplyTypes::Types::Error reply) { results_pars.push_back({ 1, reply.errorMessage }); },
+              [&](auto replay) {} },
             reply);
     });
 

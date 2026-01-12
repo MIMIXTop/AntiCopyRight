@@ -1,7 +1,5 @@
 #pragma once
 
-// #include "Network/AuthenticationManager.hpp"
-// #include "Network/Session.hpp"
 #include <boost/asio/awaitable.hpp>
 #include <boost/beast/http/dynamic_body_fwd.hpp>
 #include <boost/beast/http/message_fwd.hpp>
@@ -30,7 +28,7 @@ public:
     void getCourses(HandlerFunction func);
     void getListCoursesWorks(const std::string& courseId, HandlerFunction func);
     void getStudentsList(const std::string& courseId, HandlerFunction func);
-    void getStudentWorks(const std::string& courseId, const std::string& courseWorkId, HandlerFunction func);
+    void getStudentsWorks(const std::string& courseId, const std::string& courseWorkId, HandlerFunction func);
     void downloadStudentWork(const std::string& fileName, const std::string& fileId, HandlerFunction func);
     void getUserInfo(HandlerFunction func);
 
