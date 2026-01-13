@@ -67,7 +67,7 @@ ClassroomManager::~ClassroomManager() { ioContext_.stop(); }
 void ClassroomManager::getCourses(HandlerFunction func) {
     asio::co_spawn(
         ioContext_,
-        [this, handler = std::move(func)] -> asio::awaitable<void> {
+        [this, handler = std::move(func)]() -> asio::awaitable<void> {
             http::response<http::dynamic_body> res =
                 co_await classroomSession_->sendRequest(requestHandler(DTOCourseList {}));
 
@@ -93,7 +93,7 @@ void ClassroomManager::getCourses(HandlerFunction func) {
 void ClassroomManager::getListCoursesWorks(const std::string& courseId, HandlerFunction func) {
     asio::co_spawn(
         ioContext_,
-        [this, handler = std::move(func), courseId] -> asio::awaitable<void> {
+        [this, handler = std::move(func), courseId]() -> asio::awaitable<void> {
             http::response<http::dynamic_body> res =
                 co_await classroomSession_->sendRequest(requestHandler(DTOCourseWorksList { courseId }));
 
@@ -115,6 +115,7 @@ void ClassroomManager::getListCoursesWorks(const std::string& courseId, HandlerF
                     GET_FIELD(courseWork, title).c_str(), GET_FIELD(courseWork, description).c_str());
             }
             handler(obj);
+            co_return;
         },
         asio::detached);
 }
@@ -157,6 +158,8 @@ void ClassroomManager::getStudentsWorks(
                 }
                 obj.studentWorkList.push_back(std::move(temp));
             }
+            handler(obj);
+            co_return;
         },
         asio::detached);
 }
@@ -164,7 +167,7 @@ void ClassroomManager::getStudentsWorks(
 void ClassroomManager::getStudentsList(const std::string& courseId, HandlerFunction func) {
     asio::co_spawn(
         ioContext_,
-        [this, handler = std::move(func), courseId] -> asio::awaitable<void> {
+        [this, handler = std::move(func), courseId]() -> asio::awaitable<void> {
             http::response<http::dynamic_body> res =
                 co_await classroomSession_->sendRequest(requestHandler(DTOStudentsList { courseId }));
 
@@ -195,7 +198,7 @@ void ClassroomManager::downloadStudentWork(
     const std::string& fileName, const std::string& fileId, HandlerFunction func) {
     asio::co_spawn(
         ioContext_,
-        [this, handler = std::move(func), fileName, fileId] -> asio::awaitable<void> {
+        [this, handler = std::move(func), fileName, fileId]() -> asio::awaitable<void> {
             http::response<http::dynamic_body> res =
                 co_await googleSession_->sendRequest(requestHandler(DTOStudentWorksDownload { fileId }));
 
@@ -230,14 +233,25 @@ void ClassroomManager::getUserInfo(HandlerFunction func) {
                 co_return;
             }
             auto body = beast::buffers_to_string(res.body().cdata());
-            auto jsonBody = json::parse(body);
+            try {
+                auto jsonBody = json::parse(body).as_object();
 
-            ReplyTypes::Types::UserInfo uInf;
-            uInf.id = std::move(GET_FIELD(jsonBody, id));
-            uInf.name = std::move(GET_FIELD(jsonBody, name));
-            uInf.email = std::move(GET_FIELD(jsonBody, email));
-            uInf.photoUrl = std::move(GET_FIELD(jsonBody, picture));
-            handler(uInf);
+                ReplyTypes::Types::UserInfo uInf;
+                if (jsonBody.contains("id"))
+                    uInf.id = std::move(jsonBody.at("id").as_string());
+                if (jsonBody.contains("name"))
+                    uInf.name = std::move(jsonBody.at("name").as_string());
+                if (jsonBody.contains("email"))
+                    uInf.email = std::move(jsonBody.at("email").as_string());
+                if (jsonBody.contains("picture"))
+                    uInf.photoUrl = std::move(jsonBody.at("picture").as_string());
+                handler(uInf);
+            } catch (const std::exception& e) {
+                ReplyTypes::Types::Error obj;
+                obj.errorMessage = std::string("JSON parsing error: ") + e.what();
+                handler(obj);
+                co_return;
+            }
         },
         asio::detached);
 }

@@ -2,10 +2,5 @@
     <qresource prefix="/">
         <file>src/qml/MainWindow.qml</file>
     </qresource>
-    <qresource prefix="/resource">
-        <file>resource/menu-50.gif</file>
-        <file>resource/menu-100.gif</file>
-        <file>resource/menu-150.gif</file>
-        <file>resource/menu-200.gif</file>
-    </qresource>
+    <qresource prefix="/resource"/>
 </RCC>
