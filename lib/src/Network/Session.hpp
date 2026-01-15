@@ -27,5 +27,7 @@ private:
     boost::asio::ssl::context ctx_ { boost::asio::ssl::context::tlsv12_client };
     boost::asio::ip::tcp::resolver resolver_;
     boost::asio::ssl::stream<boost::asio::ip::tcp::socket> stream_;
+    std::string host_;
+    bool connected_ { false };
 };
 }   // namespace Network

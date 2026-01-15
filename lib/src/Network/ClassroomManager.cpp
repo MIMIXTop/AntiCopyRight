@@ -15,7 +15,9 @@
 #include <boost/beast/http/verb.hpp>
 #include <boost/json/parse.hpp>
 #include <boost/json/serializer.hpp>
+#include <chrono>
 #include <format>
+#include <future>
 #include <thread>
 #include <utility>
 #include <variant>
@@ -28,7 +30,7 @@
 
 namespace {
 #define GOOGLE_CLASSROOM_HOST "classroom.googleapis.com"
-#define GOOGLE_HOST           "googleapis.com"
+#define GOOGLE_HOST           "www.googleapis.com"
 
 #define GET_FIELD(object, field) object.as_object().at(#field).as_string()
 
@@ -40,7 +42,11 @@ namespace json = boost::json;
 
 namespace Network {
 ClassroomManager::ClassroomManager() {
-    networkThread = std::jthread([this] { ioContext_.run(); });
+    networkThread = std::jthread([this] {
+        asio::signal_set signals { ioContext_, SIGINT, SIGTERM };
+        signals.async_wait([this](auto, auto) { ioContext_.stop(); });
+        ioContext_.run();
+    });
 
     classroomSession_ = std::make_unique<Session>(ioContext_);
     asio::co_spawn(ioContext_, classroomSession_->connectToSender(GOOGLE_CLASSROOM_HOST), asio::detached);
@@ -49,6 +55,7 @@ ClassroomManager::ClassroomManager() {
     asio::co_spawn(ioContext_, googleSession_->connectToSender(GOOGLE_HOST), asio::detached);
 
     authenticationManager_ = std::make_unique<AuthenticationManager>();
+    authThread = std::jthread([this]() { authenticationManager_->run_server(); });
 }
 ClassroomManager::ClassroomManager(
     std::unique_ptr<Session> ClassSess, std::unique_ptr<Session> GoogleSess,
@@ -60,6 +67,8 @@ ClassroomManager::ClassroomManager(
         auto work = asio::make_work_guard(ioContext_);
         ioContext_.run();
     });
+
+    authThread = std::jthread([this]() { authenticationManager_->run_server(); });
 }
 
 ClassroomManager::~ClassroomManager() { ioContext_.stop(); }
@@ -68,8 +77,14 @@ void ClassroomManager::getCourses(HandlerFunction func) {
     asio::co_spawn(
         ioContext_,
         [this, handler = std::move(func)]() -> asio::awaitable<void> {
-            http::response<http::dynamic_body> res =
-                co_await classroomSession_->sendRequest(requestHandler(DTOCourseList {}));
+            auto request = requestHandler(DTOCourseList {});
+            if (request.method() == http::verb::unknown) {
+                ReplyTypes::Types::Error obj;
+                obj.errorMessage = "No access token available. Please authenticate first.";
+                handler(obj);
+                co_return;
+            }
+            http::response<http::dynamic_body> res = co_await classroomSession_->sendRequest(request);
 
             auto body = beast::buffers_to_string(res.body().cdata());
             auto jsonBody = json::parse(body).as_object();
@@ -94,8 +109,14 @@ void ClassroomManager::getListCoursesWorks(const std::string& courseId, HandlerF
     asio::co_spawn(
         ioContext_,
         [this, handler = std::move(func), courseId]() -> asio::awaitable<void> {
-            http::response<http::dynamic_body> res =
-                co_await classroomSession_->sendRequest(requestHandler(DTOCourseWorksList { courseId }));
+            auto request = requestHandler(DTOCourseWorksList { courseId });
+            if (request.method() == http::verb::unknown) {
+                ReplyTypes::Types::Error obj;
+                obj.errorMessage = "No access token available. Please authenticate first.";
+                handler(obj);
+                co_return;
+            }
+            http::response<http::dynamic_body> res = co_await classroomSession_->sendRequest(request);
 
             if (res.result() != http::status::ok) {
                 ReplyTypes::Types::Error obj;
@@ -125,8 +146,14 @@ void ClassroomManager::getStudentsWorks(
     asio::co_spawn(
         ioContext_,
         [this, handler = std::move(func), &courseId, &courseWorkId]() -> asio::awaitable<void> {
-            http::response<http::dynamic_body> res = co_await classroomSession_->sendRequest(
-                requestHandler(DTOStudentWorksData { .courseId = courseId, .courseWorkId = courseWorkId }));
+            auto request = requestHandler(DTOStudentWorksData { .courseId = courseId, .courseWorkId = courseWorkId });
+            if (request.method() == http::verb::unknown) {
+                ReplyTypes::Types::Error obj;
+                obj.errorMessage = "No access token available. Please authenticate first.";
+                handler(obj);
+                co_return;
+            }
+            http::response<http::dynamic_body> res = co_await classroomSession_->sendRequest(request);
 
             if (res.result() != http::status::ok) {
                 ReplyTypes::Types::Error obj;
@@ -168,8 +195,14 @@ void ClassroomManager::getStudentsList(const std::string& courseId, HandlerFunct
     asio::co_spawn(
         ioContext_,
         [this, handler = std::move(func), courseId]() -> asio::awaitable<void> {
-            http::response<http::dynamic_body> res =
-                co_await classroomSession_->sendRequest(requestHandler(DTOStudentsList { courseId }));
+            auto request = requestHandler(DTOStudentsList { courseId });
+            if (request.method() == http::verb::unknown) {
+                ReplyTypes::Types::Error obj;
+                obj.errorMessage = "No access token available. Please authenticate first.";
+                handler(obj);
+                co_return;
+            }
+            http::response<http::dynamic_body> res = co_await classroomSession_->sendRequest(request);
 
             if (res.result() != http::status::ok) {
                 ReplyTypes::Types::Error obj;
@@ -199,13 +232,20 @@ void ClassroomManager::downloadStudentWork(
     asio::co_spawn(
         ioContext_,
         [this, handler = std::move(func), fileName, fileId]() -> asio::awaitable<void> {
-            http::response<http::dynamic_body> res =
-                co_await googleSession_->sendRequest(requestHandler(DTOStudentWorksDownload { fileId }));
+            auto request = requestHandler(DTOStudentWorksDownload { fileId });
+            if (request.method() == http::verb::unknown) {
+                ReplyTypes::Types::Error obj;
+                obj.errorMessage = "No access token available. Please authenticate first.";
+                handler(obj);
+                co_return;
+            }
+            http::response<http::dynamic_body> res = co_await googleSession_->sendRequest(request);
 
             if (res.result() != http::status::ok) {
                 ReplyTypes::Types::Error obj;
                 obj.errorMessage = std::move(beast::buffers_to_string(res.body().cdata()));
                 handler(obj);
+
                 co_return;
             }
 
@@ -223,8 +263,14 @@ void ClassroomManager::getUserInfo(HandlerFunction func) {
     asio::co_spawn(
         ioContext_,
         [this, handler = std::move(func)]() -> asio::awaitable<void> {
-            http::response<http::dynamic_body> res =
-                co_await googleSession_->sendRequest(requestHandler(DTOUserInfo {}));
+            auto request = requestHandler(DTOUserInfo {});
+            if (request.method() == http::verb::unknown) {
+                ReplyTypes::Types::Error obj;
+                obj.errorMessage = "No access token available. Please authenticate first.";
+                handler(obj);
+                co_return;
+            }
+            http::response<http::dynamic_body> res = co_await googleSession_->sendRequest(request);
 
             if (res.result() != http::status::ok) {
                 ReplyTypes::Types::Error obj;
@@ -263,8 +309,17 @@ http::request<http::empty_body> ClassroomManager::requestHandler(DTOCreateReques
         return invalid;
     }
 
+    auto result = std::async(std::launch::async, [this] {
+        for (int i = 0; i < 20 && !authenticationManager_->EmptyAccessToken(); ++i) {
+            std::this_thread::sleep_for(std::chrono::seconds(1));
+            continue;
+        }
+        return authenticationManager_->getToken();
+    });
+
     http::request<http::empty_body> request;
-    request.set(http::field::authorization, std::format("Bearer {}", authenticationManager_->getToken()));
+
+    request.set(http::field::authorization, std::format("Bearer {}", result.get().data()));
     request.set(http::field::user_agent, BOOST_BEAST_VERSION_STRING);
     request.method(http::verb::get);
 

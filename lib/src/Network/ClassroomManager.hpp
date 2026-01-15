@@ -29,8 +29,9 @@ public:
     void getListCoursesWorks(const std::string& courseId, HandlerFunction func);
     void getStudentsList(const std::string& courseId, HandlerFunction func);
     void getStudentsWorks(const std::string& courseId, const std::string& courseWorkId, HandlerFunction func);
-    void downloadStudentWork(const std::string& fileName, const std::string& fileId, HandlerFunction func);
+    void downloadStudentWork(const std::string& filSeName, const std::string& fileId, HandlerFunction func);
     void getUserInfo(HandlerFunction func);
+    std::string getAuthUrl() { return authenticationManager_->getAuthUrl(); }
 
 private:
     enum class RequestType { COURSES_LIST, COURSES_WORKS_LIST, STUDENTS_LIST, DOWNLOAD_STUDENT_WORK };
@@ -42,5 +43,6 @@ private:
 
     boost::asio::io_context ioContext_;
     std::jthread networkThread;
+    std::jthread authThread;
 };
 }   // namespace Network

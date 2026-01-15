@@ -102,6 +102,7 @@ find_package(Qt6 REQUIRED COMPONENTS
         QuickControls2
         QuickLayouts
         QuickTemplates2
+        Widgets
 )
 
 configure_file(config.hpp.in ${CMAKE_BINARY_DIR}/config.hpp @ONLY)
@@ -115,7 +116,7 @@ file(GLOB_RECURSE HEADERS src/*.hpp)
 
 qt_add_executable(AntiCopyRight ${SRCS} ${HEADERS})
 
-target_link_libraries(AntiCopyRight PRIVATE Qt6::Core Qt6::Quick Qt6::QuickControls2)
+target_link_libraries(AntiCopyRight PRIVATE Qt6::Core Qt6::Quick Qt6::QuickControls2 Qt6::Widgets)
 qt_add_qml_module(AntiCopyRight
         URI QML_SRC
         VERSION 1.0
@@ -125,6 +126,7 @@ qt_add_qml_module(AntiCopyRight
                 "resource/menu-128.png"
                 "resource/menu-128.svg"
                 "resource/menu-64.svg"
+                "resource/DefaultUserLogo.png"
 )
 
 add_dependencies(AntiCopyRight MyStemBinary)

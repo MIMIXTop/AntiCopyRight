@@ -1,8 +1,10 @@
 #include <QDebug>
-#include <QGuiApplication>
 #include <QQmlApplicationEngine>
 #include <QQuickWindow>
+#include <QTimer>
 #include <print>
+
+#include "QmlState/GlobalAppState.hpp"
 
 int main(int argc, char* argv[]) {
     QGuiApplication app(argc, argv);
@@ -27,7 +29,6 @@ int main(int argc, char* argv[]) {
                 QCoreApplication::exit(-1);
             } else {
                 qDebug() << "QML object created successfully:" << obj;
-                // Принудительно показываем окно
                 QQuickWindow* window = qobject_cast<QQuickWindow*>(obj);
                 if (window) {
                     window->show();
@@ -35,6 +36,8 @@ int main(int argc, char* argv[]) {
             }
         },
         Qt::QueuedConnection);
+
+    qmlRegisterType<GlobalState>("Backend.GlobalState", 1, 0, "GlobalState");
 
     engine.loadFromModule("QML_SRC", "MainWindow");
 

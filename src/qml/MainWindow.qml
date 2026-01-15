@@ -1,12 +1,15 @@
 import QtQuick 2.15
 import QtQuick.Controls
 import QtQuick.Window
-import QtQuick  // Для AnimatedImage
+import Backend.GlobalState 1.0
 
 ApplicationWindow {
     height: 1080
     width: 1920
     title: qsTr("Hello")
+    GlobalState {
+        id: globalState
+    }
 
     Rectangle {
         id: topBar
@@ -39,6 +42,31 @@ ApplicationWindow {
                     } else {
                         sideBar.width = sideBar.widthMax;
                     }
+                }
+            }
+        }
+
+
+        Rectangle {
+            id: userLogo
+            anchors.right: parent.right
+            anchors.verticalCenter: parent.verticalCenter
+            width: 50
+            height: 50
+            color: "transparent"
+
+            Image {
+                id: userLogoImage
+                source: globalState.logo !== "" ? globalState.logo : "qrc:/QML_SRC/resource/DefaultUserLogo.png"
+                anchors.fill: parent
+                fillMode: Image.PreserveAspectFit
+            }
+
+            MouseArea {
+                anchors.fill: parent
+
+                onClicked: {
+                    globalState.authUser();
                 }
             }
         }
