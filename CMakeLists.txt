@@ -114,9 +114,12 @@ target_include_directories(antyCopy_lib PUBLIC ${CMAKE_BINARY_DIR})
 file(GLOB_RECURSE SRCS src/*.cpp)
 file(GLOB_RECURSE HEADERS src/*.hpp)
 
-qt_add_executable(AntiCopyRight ${SRCS} ${HEADERS})
+# Создаем исполняемый файл без автоматической обработки MOC для QML-модуля
+add_executable(AntiCopyRight ${SRCS} ${HEADERS})
 
 target_link_libraries(AntiCopyRight PRIVATE Qt6::Core Qt6::Quick Qt6::QuickControls2 Qt6::Widgets)
+
+# Регистрируем QML-модуль отдельно, чтобы избежать дублирования обработки MOC
 qt_add_qml_module(AntiCopyRight
         URI QML_SRC
         VERSION 1.0

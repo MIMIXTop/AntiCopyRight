@@ -32,6 +32,7 @@ public:
     void downloadStudentWork(const std::string& filSeName, const std::string& fileId, HandlerFunction func);
     void getUserInfo(HandlerFunction func);
     std::string getAuthUrl() { return authenticationManager_->getAuthUrl(); }
+    bool emptyToken() { return authenticationManager_->EmptyAccessToken(); }
 
 private:
     enum class RequestType { COURSES_LIST, COURSES_WORKS_LIST, STUDENTS_LIST, DOWNLOAD_STUDENT_WORK };
