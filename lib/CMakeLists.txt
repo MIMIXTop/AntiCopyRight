@@ -7,6 +7,9 @@ add_library(antyCopy_lib STATIC ${SRCS})
 target_compile_definitions(antyCopy_lib PRIVATE
         MYSTEM_EXECUTABLE="${MYSTEM_EXE}"
 )
+target_include_directories(antyCopy_lib PUBLIC
+        ${CMAKE_CURRENT_SOURCE_DIR}
+)
 
 find_package(OpenSSL REQUIRED)
 target_link_libraries(antyCopy_lib PUBLIC
@@ -19,6 +22,8 @@ target_link_libraries(antyCopy_lib PUBLIC
         pugixml
         minizip
 )
+
+target_include_directories(antyCopy_lib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
 
 file(GLOB_RECURSE TEST_SRCS test/*.cpp)
 

@@ -1,8 +1,6 @@
 <RCC>
     <qresource prefix="/">
-        <file>src/qml/Main.qml</file>
-        <file>src/qml/CourseItem.qml</file>
-        <file>src/qml/SideBar.qml</file>
-        <file>src/qml/WorkItem.qml</file>
+        <file>src/qml/MainWindow.qml</file>
     </qresource>
+    <qresource prefix="/resource"/>
 </RCC>

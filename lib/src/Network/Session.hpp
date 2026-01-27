@@ -11,22 +11,23 @@
 
 namespace Network {
 class Session {
- public:
-  Session(boost::asio::io_context& ioc);
+public:
+    Session(boost::asio::io_context& ioc);
 
-  virtual ~Session() = default;
+    virtual ~Session() = default;
 
-  virtual boost::asio::awaitable<void> connectToSender(const std::string& host);
+    virtual boost::asio::awaitable<void> connectToSender(const std::string& host);
 
-  virtual boost::asio::awaitable<void> stopConnectToSender();
+    virtual boost::asio::awaitable<void> stopConnectToSender();
 
-  virtual boost::asio::awaitable<
-      boost::beast::http::response<boost::beast::http::dynamic_body>>
-  sendRequest(boost::beast::http::request<boost::beast::http::empty_body> req);
+    virtual boost::asio::awaitable<boost::beast::http::response<boost::beast::http::dynamic_body>>
+    sendRequest(boost::beast::http::request<boost::beast::http::empty_body> req);
 
- private:
-  boost::asio::ssl::context ctx_{boost::asio::ssl::context::tlsv12_client};
-  boost::asio::ip::tcp::resolver resolver_;
-  boost::asio::ssl::stream<boost::asio::ip::tcp::socket> stream_;
+private:
+    boost::asio::ssl::context ctx_ { boost::asio::ssl::context::tlsv12_client };
+    boost::asio::ip::tcp::resolver resolver_;
+    boost::asio::ssl::stream<boost::asio::ip::tcp::socket> stream_;
+    std::string host_;
+    bool connected_ { false };
 };
-}  // namespace Network
+}   // namespace Network

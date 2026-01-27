@@ -1,7 +1,6 @@
 #include "Lemmatizer.hpp"
 #include "config.hpp"
 #include <Util/util.hpp>
-
 #include <fstream>
 #include <iostream>
 
@@ -16,45 +15,43 @@ namespace {
 #define PATH_STOP_WORDS PATH_TO_UTILS "StopWords/stopWords.txt"
 #endif
 
-std::unordered_set<std::string>
-getStopWords(const std::string &path = PATH_STOP_WORDS) {
-  std::unordered_set<std::string> stopWords = {};
+std::unordered_set<std::string> getStopWords(const std::string& path = PATH_STOP_WORDS) {
+    std::unordered_set<std::string> stopWords = {};
 
-  if (std::ifstream file(path); file.is_open()) {
-    std::string line;
-    while (file >> line) {
-      stopWords.insert(line);
+    if (std::ifstream file(path); file.is_open()) {
+        std::string line;
+        while (file >> line) {
+            stopWords.insert(line);
+        }
+        file.close();
+    } else {
+        std::cout << "Could not open file";
     }
-    file.close();
-  } else {
-    std::cout << "Could not open file";
-  }
 
-  return stopWords;
+    return stopWords;
 }
 
-} // namespace
+}   // namespace
 
 Lemmatizer::Lemmatizer() : stopWords(getStopWords()) {}
 
-std::vector<std::string> Lemmatizer::getLemmas(const std::string &text) {
-  std::vector<std::string> lemmas;
-  std::string command =
-      "echo \"" + text + "\" | " + MYSTEM_EXECUTABLE + " -l -n";
-  FILE *pipe = popen(command.c_str(), "r");
-  if (pipe == nullptr) {
-    std::cout << "Could not open pipe";
-  }
-
-  char buffer[128];
-  while (fgets(buffer, sizeof(buffer), pipe) != nullptr) {
-    std::string line(buffer);
-
-    if (!line.empty()) {
-      lemmas.push_back(util::StringWorker::getFirstLemma(line));
+std::vector<std::string> Lemmatizer::getLemmas(const std::string& text) {
+    std::vector<std::string> lemmas;
+    std::string command = "echo \"" + text + "\" | " + MYSTEM_EXECUTABLE + " -l -n";
+    FILE* pipe = popen(command.c_str(), "r");
+    if (pipe == nullptr) {
+        std::cout << "Could not open pipe";
     }
-  }
 
-  pclose(pipe);
-  return lemmas;
+    char buffer[128];
+    while (fgets(buffer, sizeof(buffer), pipe) != nullptr) {
+        std::string line(buffer);
+
+        if (!line.empty()) {
+            lemmas.push_back(util::StringWorker::getFirstLemma(line));
+        }
+    }
+
+    pclose(pipe);
+    return lemmas;
 }
